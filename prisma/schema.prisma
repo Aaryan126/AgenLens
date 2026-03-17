@@ -1,0 +1,102 @@
+// Prisma schema for AgenLens.
+// Defines the database models for activity logging, policy management,
+// connected accounts, and step-up authentication events.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Tracks every API call made by a sub-agent through the proxy.
+/// This is the core observability table - every proxied request creates one row.
+model AgentActivity {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  sessionId       String   @map("session_id")
+  /// Groups all sub-agent actions triggered by a single user request.
+  requestId       String   @map("request_id")
+  agentType       String   @map("agent_type")
+  /// Human-readable action description, e.g. "Read event 'Design Sync 2pm'"
+  action          String
+  targetService   String   @map("target_service")
+  httpMethod      String   @map("http_method")
+  endpoint        String
+  /// Sanitized request metadata - never stores sensitive content.
+  requestSummary  Json?    @map("request_summary")
+  responseStatus  Int      @map("response_status")
+  /// Sanitized response metadata.
+  responseSummary Json?    @map("response_summary")
+  scopesUsed      String[] @map("scopes_used")
+  policyResult    String   @map("policy_result")
+  /// CIBA auth_req_id if step-up authentication was triggered.
+  stepUpId        String?  @map("step_up_id")
+  stepUpResult    String?  @map("step_up_result")
+  durationMs      Int      @map("duration_ms")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  stepUpEvent StepUpEvent?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([requestId])
+  @@index([agentType])
+  @@index([sessionId])
+  @@map("agent_activities")
+}
+
+/// User-defined policy rules that constrain what a sub-agent can do.
+/// Evaluated by the proxy before forwarding each API request.
+model AgentPolicy {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  agentType  String   @map("agent_type")
+  policyType String   @map("policy_type")
+  /// Policy-specific rule configuration. Structure varies by policyType.
+  rules      Json
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, agentType])
+  @@map("agent_policies")
+}
+
+/// Tracks connected third-party accounts managed via Auth0 Connected Accounts.
+model ConnectedAccount {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  provider       String
+  connectionName String   @map("connection_name")
+  scopesGranted  String[] @map("scopes_granted")
+  connectedAt    DateTime @default(now()) @map("connected_at")
+  lastUsedAt     DateTime @default(now()) @map("last_used_at")
+  status         String   @default("active")
+
+  @@unique([userId, connectionName])
+  @@index([userId])
+  @@map("connected_accounts")
+}
+
+/// Records CIBA step-up authentication events.
+/// Created when the proxy determines an agent action needs explicit user approval.
+model StepUpEvent {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  activityId        String   @unique @map("activity_id")
+  agentType         String   @map("agent_type")
+  actionDescription String   @map("action_description")
+  cibaAuthReqId     String   @map("ciba_auth_req_id")
+  status            String   @default("pending")
+  requestedAt       DateTime @default(now()) @map("requested_at")
+  resolvedAt        DateTime? @map("resolved_at")
+  tokenExpiresAt    DateTime? @map("token_expires_at")
+
+  activity AgentActivity @relation(fields: [activityId], references: [id])
+
+  @@index([userId, status])
+  @@index([cibaAuthReqId])
+  @@map("step_up_events")
+}
