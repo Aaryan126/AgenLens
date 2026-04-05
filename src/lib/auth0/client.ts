@@ -15,7 +15,13 @@ import { Auth0Client } from "@auth0/nextjs-auth0/server";
  * Auth0 Next.js SDK client instance.
  * Handles user authentication, session management, and token operations.
  */
-export const auth0 = new Auth0Client();
+export const auth0 = new Auth0Client({
+  enableConnectAccountEndpoint: true,
+  authorizationParameters: {
+    audience: `${process.env.AUTH0_ISSUER_BASE_URL}/api/v2/`,
+    scope: "openid profile email offline_access",
+  },
+});
 
 /**
  * Gets a scoped access token for a connected third-party provider

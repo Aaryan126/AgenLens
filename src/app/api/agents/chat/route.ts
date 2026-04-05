@@ -39,6 +39,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const activeSessionId = sessionId || generateSessionId();
     const requestId = generateRequestId();
 
+    // Log session info for debugging.
+    console.log("[Chat] Session user:", session.user.sub);
+    console.log("[Chat] Session tokenSet keys:", Object.keys(session.tokenSet || {}));
+
     // Get the user's access token for Token Vault exchanges.
     const { token: accessToken } = await auth0.getAccessToken();
 
@@ -49,11 +53,70 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Fetch provider tokens. Try Token Vault first, fall back to Management API.
+    const providerTokens: Record<string, string> = {};
+    const connections = ["google-oauth2", "github", "slack"];
+
+    // Attempt 1: Token Vault (getAccessTokenForConnection).
+    for (const connection of connections) {
+      try {
+        const result = await auth0.getAccessTokenForConnection({ connection });
+        providerTokens[connection] = result.token;
+        console.log(`[Chat] Got token for ${connection} via Token Vault`);
+      } catch {
+        // Will try Management API fallback below.
+      }
+    }
+
+    // Attempt 2: Management API fallback for connections that failed.
+    const missing = connections.filter((c) => !providerTokens[c]);
+    if (missing.length > 0) {
+      try {
+        const domain = process.env.AUTH0_ISSUER_BASE_URL;
+        const mgmtTokenRes = await fetch(`${domain}/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: process.env.AUTH0_CLIENT_ID,
+            client_secret: process.env.AUTH0_CLIENT_SECRET,
+            audience: `${domain}/api/v2/`,
+            grant_type: "client_credentials",
+          }),
+        });
+        const mgmtToken = await mgmtTokenRes.json();
+
+        if (mgmtToken.access_token) {
+          const userRes = await fetch(
+            `${domain}/api/v2/users/${encodeURIComponent(session.user.sub)}`,
+            { headers: { Authorization: `Bearer ${mgmtToken.access_token}` } }
+          );
+          const userData = await userRes.json();
+
+          if (userData.identities) {
+            for (const identity of userData.identities) {
+              if (identity.access_token) {
+                const connName = identity.provider === "google-oauth2"
+                  ? "google-oauth2"
+                  : identity.provider;
+                if (!providerTokens[connName]) {
+                  providerTokens[connName] = identity.access_token;
+                  console.log(`[Chat] Got token for ${connName} via Management API`);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[Chat] Failed to fetch provider tokens via Management API:", err);
+      }
+    }
+
     const response = await invokeSupervisor(message, {
       sessionId: activeSessionId,
       requestId,
       userId: session.user.sub,
       userAccessToken: accessToken,
+      providerTokens,
     });
 
     return NextResponse.json({

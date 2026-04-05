@@ -3,12 +3,12 @@
  *
  * Provides a message input and conversation view. Messages are sent to
  * the supervisor agent API, which orchestrates sub-agents and returns
- * synthesized responses. Inline indicators show which sub-agents are active.
+ * synthesized responses. Messages are persisted to the database.
  */
 
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent } from "react";
+import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,11 +26,55 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  /** Loads the most recent chat session from the database. */
+  const loadMessages = useCallback(async () => {
+    try {
+      const response = await fetch("/api/chat/messages");
+      if (!response.ok) return;
+
+      const json = await response.json();
+      if (json.data && json.data.length > 0) {
+        setSessionId(json.sessionId || null);
+        setMessages(
+          json.data.map((m: { id: string; role: string; content: string; requestId?: string; createdAt: string }) => ({
+            id: m.id,
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            requestId: m.requestId || undefined,
+            timestamp: new Date(m.createdAt),
+          }))
+        );
+      }
+    } catch {
+      // Silently fail on load.
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  /** Saves a message to the database. */
+  const saveMessage = async (msg: { sessionId: string; role: string; content: string; requestId?: string }) => {
+    try {
+      await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(msg),
+      });
+    } catch {
+      // Silently fail on save.
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,19 +104,52 @@ export function ChatInterface() {
       const json = await response.json();
 
       if (response.ok) {
-        if (json.data.sessionId) {
-          setSessionId(json.data.sessionId);
+        const activeSessionId = json.data.sessionId || sessionId;
+        if (activeSessionId) {
+          setSessionId(activeSessionId);
+        }
+
+        // Save user message.
+        await saveMessage({
+          sessionId: activeSessionId,
+          role: "user",
+          content: userMessage.content,
+        });
+
+        let content = json.data.response;
+
+        // Detect token expiry in the agent's response.
+        const tokenExpired = /token.*(expired|invalid)|authentication credentials|not.*authorized|session.*expired/i.test(content);
+        if (tokenExpired) {
+          content += "\n\n---\nYour connection token may have expired. [Click here to reconnect your Google account](/api/connect?connection=google-oauth2).";
         }
 
         const assistantMessage: ChatMessage = {
           id: `msg_${Date.now()}_assistant`,
           role: "assistant",
-          content: json.data.response,
+          content,
           requestId: json.data.requestId,
           timestamp: new Date(),
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+
+        // Save assistant message.
+        await saveMessage({
+          sessionId: activeSessionId,
+          role: "assistant",
+          content,
+          requestId: json.data.requestId,
+        });
+      } else if (response.status === 401) {
+        const errorMessage: ChatMessage = {
+          id: `msg_${Date.now()}_error`,
+          role: "assistant",
+          content: "Your session has expired. Please sign in again to continue.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setTimeout(() => { window.location.href = "/auth/login"; }, 3000);
       } else {
         const errorMessage: ChatMessage = {
           id: `msg_${Date.now()}_error`,
@@ -97,6 +174,15 @@ export function ChatInterface() {
       setIsLoading(false);
     }
   };
+
+  if (!loaded) {
+    return (
+      <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        Loading conversation...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -150,7 +236,7 @@ export function ChatInterface() {
                   : "bg-[var(--secondary)]"
               }`}
             >
-              <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+              <MessageContent text={message.content} />
               {message.requestId && (
                 <a
                   href={`/dashboard/activity/${message.requestId}`}
@@ -203,5 +289,31 @@ export function ChatInterface() {
         </form>
       </div>
     </div>
+  );
+}
+
+/** Renders message text with basic markdown link support. */
+function MessageContent({ text }: { text: string }) {
+  const parts = text.split(/\[([^\]]+)\]\(([^)]+)\)/g);
+
+  return (
+    <p className="whitespace-pre-wrap text-sm">
+      {parts.map((part, i) => {
+        if (i % 3 === 1) {
+          // Link text - render as anchor with the next part as href.
+          const href = parts[i + 1];
+          return (
+            <a key={i} href={href} className="font-medium text-[var(--primary)] underline">
+              {part}
+            </a>
+          );
+        }
+        if (i % 3 === 2) {
+          // Link href - already consumed above, skip.
+          return null;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
   );
 }

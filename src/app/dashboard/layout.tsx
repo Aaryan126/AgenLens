@@ -1,15 +1,24 @@
 /**
- * Dashboard layout with sidebar navigation.
- * All dashboard pages share this layout with the persistent sidebar.
+ * Dashboard layout with sidebar navigation and auth protection.
+ * All dashboard pages share this layout. Redirects to login if
+ * the user is not authenticated.
  */
 
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { auth0 } from "@/lib/auth0/client";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth0.getSession();
+
+  if (!session) {
+    redirect("/auth/login");
+  }
+
   return (
     <div className="min-h-screen">
       <Sidebar />

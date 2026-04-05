@@ -34,6 +34,7 @@ async function callProxy(params: {
   requestId: string;
   userId: string;
   userAccessToken: string;
+  providerTokens?: Record<string, string>;
 }): Promise<unknown> {
   const response = await fetch(`${PROXY_BASE_URL}/api/proxy`, {
     method: "POST",
@@ -47,6 +48,7 @@ async function callProxy(params: {
       requestId: params.requestId,
       userId: params.userId,
       userAccessToken: params.userAccessToken,
+      providerTokens: params.providerTokens,
     }),
   });
 
@@ -60,7 +62,7 @@ async function callProxy(params: {
 /** Lists upcoming calendar events within a time range. */
 export const listCalendarEvents = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const timeMin = input.timeMin || new Date().toISOString();
@@ -79,6 +81,7 @@ export const listCalendarEvents = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -97,7 +100,7 @@ export const listCalendarEvents = tool(
 /** Gets details of a specific calendar event by ID. */
 export const getCalendarEvent = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(input.eventId)}`;
@@ -111,6 +114,7 @@ export const getCalendarEvent = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -126,7 +130,7 @@ export const getCalendarEvent = tool(
 /** Creates a new calendar event (requires step-up auth). */
 export const createCalendarEvent = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url =
@@ -148,6 +152,7 @@ export const createCalendarEvent = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -173,7 +178,7 @@ export const createCalendarEvent = tool(
 /** Searches Gmail messages matching a query. */
 export const searchEmails = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(input.query)}&maxResults=${input.maxResults || 10}`;
@@ -187,6 +192,7 @@ export const searchEmails = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -204,10 +210,10 @@ export const searchEmails = tool(
 /** Reads a specific email message by ID. */
 export const readEmail = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
-    const url = `https://www.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(input.messageId)}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date`;
+    const url = `https://www.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(input.messageId)}?format=full`;
 
     return JSON.stringify(
       await callProxy({
@@ -218,13 +224,14 @@ export const readEmail = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
   {
     name: "read_email",
     description:
-      "Read a specific Gmail message by ID. Returns metadata (subject, from, to, date) without body content.",
+      "Read a specific Gmail message by ID. Returns the full message including headers and snippet.",
     schema: z.object({
       messageId: z.string().describe("The Gmail message ID"),
     }),
@@ -234,7 +241,7 @@ export const readEmail = tool(
 /** Sends an email (requires step-up auth). */
 export const sendEmail = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const rawEmail = [
@@ -258,6 +265,7 @@ export const sendEmail = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -280,7 +288,7 @@ export const sendEmail = tool(
 /** Lists pull requests for a repository. */
 export const listPullRequests = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls?state=${input.state || "open"}&per_page=${input.perPage || 10}`;
@@ -294,6 +302,7 @@ export const listPullRequests = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -312,7 +321,7 @@ export const listPullRequests = tool(
 /** Lists issues for a repository. */
 export const listIssues = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues?state=${input.state || "open"}&per_page=${input.perPage || 10}`;
@@ -326,6 +335,7 @@ export const listIssues = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -344,7 +354,7 @@ export const listIssues = tool(
 /** Creates a new GitHub issue (requires step-up auth). */
 export const createIssue = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues`;
@@ -363,6 +373,7 @@ export const createIssue = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -383,7 +394,7 @@ export const createIssue = tool(
 /** Gets repository details. */
 export const getRepository = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`;
@@ -397,6 +408,7 @@ export const getRepository = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -417,7 +429,7 @@ export const getRepository = tool(
 /** Searches Slack messages matching a query. */
 export const searchSlackMessages = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://slack.com/api/search.messages?query=${encodeURIComponent(input.query)}&count=${input.count || 10}`;
@@ -431,6 +443,7 @@ export const searchSlackMessages = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -447,7 +460,7 @@ export const searchSlackMessages = tool(
 /** Lists Slack channels. */
 export const listSlackChannels = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=${input.limit || 20}`;
@@ -461,6 +474,7 @@ export const listSlackChannels = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -476,7 +490,7 @@ export const listSlackChannels = tool(
 /** Posts a message to a Slack channel (requires step-up auth). */
 export const postSlackMessage = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = "https://slack.com/api/chat.postMessage";
@@ -494,6 +508,7 @@ export const postSlackMessage = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -515,7 +530,7 @@ export const postSlackMessage = tool(
 /** Searches Google Drive files. */
 export const searchDriveFiles = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(input.query)}&pageSize=${input.pageSize || 10}&fields=files(id,name,mimeType,modifiedTime,webViewLink,owners)`;
@@ -529,6 +544,7 @@ export const searchDriveFiles = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },
@@ -546,7 +562,7 @@ export const searchDriveFiles = tool(
 /** Gets metadata for a specific Drive file. */
 export const getDriveFile = tool(
   async (input, config) => {
-    const { sessionId, requestId, userId, userAccessToken } =
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
       config?.configurable ?? {};
 
     const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(input.fileId)}?fields=id,name,mimeType,modifiedTime,webViewLink,owners,size,shared`;
@@ -560,6 +576,7 @@ export const getDriveFile = tool(
         requestId,
         userId,
         userAccessToken,
+        providerTokens,
       })
     );
   },

@@ -16,7 +16,8 @@
  * Sub-agents NEVER hold raw third-party tokens. The proxy injects them.
  */
 
-import { exchangeTokenVault, initiateCIBA, pollCIBAResult } from "@/lib/auth0/client";
+import { auth0 } from "@/lib/auth0/client";
+import { initiateCIBA, pollCIBAResult } from "@/lib/auth0/client";
 import { evaluatePolicy } from "@/lib/proxy/policy-engine";
 import { logActivity } from "@/lib/proxy/logger";
 import { db } from "@/lib/db";
@@ -41,7 +42,8 @@ const CIBA_POLL_INTERVAL_MS = 5000;
  */
 export async function proxyRequest(
   request: ProxyRequest,
-  userAccessToken: string
+  userAccessToken: string,
+  providerTokens?: Record<string, string>
 ): Promise<ProxyResponse> {
   const startTime = Date.now();
 
@@ -108,13 +110,20 @@ export async function proxyRequest(
 
   let providerToken: string;
   try {
-    const tokenResult = await exchangeTokenVault(
-      userAccessToken,
-      config.connection
-    );
-    providerToken = tokenResult.access_token;
+    // Use pre-fetched provider token if available (fetched in chat route where session exists).
+    // Fall back to SDK method (only works when session context is available).
+    const preFetched = providerTokens?.[config.connection];
+    if (preFetched) {
+      providerToken = preFetched;
+    } else {
+      const tokenResult = await auth0.getAccessTokenForConnection({
+        connection: config.connection,
+      });
+      providerToken = tokenResult.token;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Token exchange failed";
+    console.error("[Proxy] Token exchange failed:", message);
 
     await logActivity({
       request,
@@ -146,6 +155,24 @@ export async function proxyRequest(
     });
 
     const responseBody = await externalResponse.json().catch(() => null);
+
+    // Detect expired token and return a clear error.
+    if (externalResponse.status === 401) {
+      await logActivity({
+        request,
+        response: null,
+        action: `Token expired for ${config.connection}. Please reconnect.`,
+        policyResult: "allowed",
+        scopesUsed: config.defaultScopes,
+      });
+
+      return {
+        status: 401,
+        headers: {},
+        body: { error: "token_expired", connection: config.connection, message: "Provider token has expired. Please reconnect your account." },
+        durationMs: Date.now() - startTime,
+      };
+    }
 
     response = {
       status: externalResponse.status,

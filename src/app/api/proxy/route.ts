@@ -37,6 +37,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       requestId,
       userId,
       userAccessToken,
+      providerTokens,
     } = body;
 
     if (!agentType || !method || !url || !userId || !userAccessToken) {
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       userId,
     };
 
-    const result = await proxyRequest(proxyReq, userAccessToken);
+    const result = await proxyRequest(proxyReq, userAccessToken, providerTokens);
 
     return NextResponse.json(
       { data: result.body, status: result.status },

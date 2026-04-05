@@ -14,7 +14,7 @@
  * The supervisor itself never calls external APIs directly.
  */
 
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatVertexAI } from "@langchain/google-vertexai";
 import { StateGraph, MessagesAnnotation, END } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage, BaseMessage } from "@langchain/core/messages";
 import {
@@ -36,18 +36,26 @@ import {
 } from "@/lib/agents/tools";
 
 /** LLM instance shared across agent nodes. */
-const llm = new ChatOpenAI({
-  model: "gpt-4o",
+const llm = new ChatVertexAI({
+  model: "gemini-2.5-pro",
   temperature: 0,
 });
 
-/** System prompt for the supervisor that controls task decomposition. */
-const SUPERVISOR_SYSTEM_PROMPT = `You are the AgenLens Supervisor Agent. You orchestrate specialized sub-agents to help users manage their work across Google Calendar, Gmail, GitHub, Slack, and Google Drive.
+/** Builds the system prompt with the current date/time. */
+function getSupervisorSystemPrompt(): string {
+  return `You are the AgenLens Supervisor Agent. You orchestrate specialized sub-agents to help users manage their work across Google Calendar, Gmail, GitHub, Slack, and Google Drive.
 
 Your role:
 1. Analyze the user's request and determine which sub-agents are needed.
-2. Delegate specific sub-tasks to the appropriate sub-agents using the available tools.
+2. Immediately call the appropriate tools. DO NOT ask the user for more details if you can make a reasonable assumption.
 3. Synthesize results from all sub-agents into a clear, helpful response.
+
+CRITICAL BEHAVIOR:
+- ALWAYS prefer action over clarification. If the user says "show me my emails", call search_emails right away with a broad query. Do NOT ask what emails they want.
+- If the user says "read all 3 emails", call read_email for each message ID you have. Do NOT ask for IDs you already received.
+- When you get a list of emails/events/files, automatically read the details of each one and present them in a readable format.
+- When search results return message IDs, ALWAYS follow up by reading each message to get the actual content (subject, from, to, date).
+- Use context from the conversation. If you just listed 3 emails, and the user says "read them all", you already have the IDs.
 
 Available sub-agents and their capabilities:
 - Calendar Agent: Read calendar events, check availability, create events (needs approval)
@@ -56,12 +64,19 @@ Available sub-agents and their capabilities:
 - Slack Agent: Search messages, list channels, post messages (needs approval)
 - Drive Agent: Search and read file metadata from Google Drive
 
-Important rules:
+Date/Time context:
+- Current date and time: ${new Date().toISOString()}
+- Today's date for Gmail queries: ${new Date().toISOString().split("T")[0].replace(/-/g, "/")}
+- When the user says "today", use the Gmail query "newer_than:1d" or "after:YYYY/MM/DD" with today's date.
+- When the user says "this week", use "newer_than:7d".
+
+Rules:
 - Only use the sub-agents that are relevant to the user's request.
 - Write operations (creating events, sending emails, posting messages, creating issues) require user approval via step-up authentication. Inform the user when an approval is needed.
 - If a sub-agent's request is blocked by a policy, explain what happened and suggest alternatives.
-- Always synthesize results into a clear narrative. Don't dump raw API data.
-- If you're unsure what the user wants, ask for clarification.`;
+- Always synthesize results into a clear, human-readable narrative. Don't dump raw API data.
+- Present emails with Subject, From, Date. Present calendar events with Title, Time, Attendees. Present GitHub items with Title, Status, Author.`;
+}
 
 /** Tools grouped by sub-agent for clear organization. */
 const ALL_TOOLS = [
@@ -110,7 +125,7 @@ export function buildSupervisorGraph() {
     state: typeof MessagesAnnotation.State
   ): Promise<{ messages: BaseMessage[] }> {
     const messages = [
-      new SystemMessage(SUPERVISOR_SYSTEM_PROMPT),
+      new SystemMessage(getSupervisorSystemPrompt()),
       ...state.messages,
     ];
 
@@ -240,6 +255,7 @@ export async function invokeSupervisor(
     requestId: string;
     userId: string;
     userAccessToken: string;
+    providerTokens?: Record<string, string>;
   }
 ): Promise<string> {
   const graph = buildSupervisorGraph();

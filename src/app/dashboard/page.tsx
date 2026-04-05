@@ -1,16 +1,39 @@
 /**
  * Dashboard overview page.
  *
- * Shows key metrics, the live activity feed, and agent permission cards
- * in a single view. This is the primary monitoring interface.
+ * Shows key metrics from the database, the live activity feed,
+ * and agent permission cards in a single view.
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsBar } from "@/components/dashboard/stats-bar";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { AgentCardsGrid } from "@/components/dashboard/agent-cards";
+import { auth0 } from "@/lib/auth0/client";
+import { db } from "@/lib/db";
 
-export default function DashboardOverview() {
+export default async function DashboardOverview() {
+  const session = await auth0.getSession();
+  const userId = session?.user.sub;
+
+  let totalActions = 0;
+  let blockedActions = 0;
+  let stepUpAuths = 0;
+  let activeAgentCount = 0;
+
+  if (userId) {
+    const [total, blocked, stepUps, agents] = await Promise.all([
+      db.agentActivity.count({ where: { userId } }),
+      db.agentActivity.count({ where: { userId, policyResult: "blocked" } }),
+      db.stepUpEvent.count({ where: { userId } }),
+      db.agentActivity.groupBy({ by: ["agentType"], where: { userId } }),
+    ]);
+    totalActions = total;
+    blockedActions = blocked;
+    stepUpAuths = stepUps;
+    activeAgentCount = agents.length;
+  }
+
   return (
     <div className="space-y-8">
       {/* Page header */}
@@ -23,10 +46,10 @@ export default function DashboardOverview() {
 
       {/* Stats */}
       <StatsBar
-        totalActions={0}
-        blockedActions={0}
-        stepUpAuths={0}
-        activeAgents={5}
+        totalActions={totalActions}
+        blockedActions={blockedActions}
+        stepUpAuths={stepUpAuths}
+        activeAgents={activeAgentCount}
       />
 
       {/* Main content grid */}

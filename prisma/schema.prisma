@@ -80,6 +80,20 @@ model ConnectedAccount {
   @@map("connected_accounts")
 }
 
+/// Persists chat messages between users and the supervisor agent.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  sessionId String   @map("session_id")
+  role      String
+  content   String
+  requestId String?  @map("request_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, sessionId])
+  @@map("chat_messages")
+}
+
 /// Records CIBA step-up authentication events.
 /// Created when the proxy determines an agent action needs explicit user approval.
 model StepUpEvent {

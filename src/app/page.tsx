@@ -5,6 +5,7 @@
  */
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Bot,
   Shield,
@@ -16,8 +17,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { auth0 } from "@/lib/auth0/client";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth0.getSession();
+
+  if (session) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
@@ -28,7 +36,7 @@ export default function LandingPage() {
           </div>
           <span className="text-lg font-bold">AgenLens</span>
         </div>
-        <Link href="/api/auth/login">
+        <Link href="/auth/login">
           <Button>Sign In</Button>
         </Link>
       </header>
@@ -51,14 +59,9 @@ export default function LandingPage() {
         </p>
 
         <div className="flex gap-4">
-          <Link href="/api/auth/login">
+          <Link href="/auth/login">
             <Button size="lg" className="gap-2">
               Get Started <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="/dashboard">
-            <Button size="lg" variant="outline">
-              View Dashboard
             </Button>
           </Link>
         </div>
