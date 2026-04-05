@@ -422,6 +422,39 @@ export const getRepository = tool(
   }
 );
 
+/** Lists repositories for the authenticated user. */
+export const listRepositories = tool(
+  async (input, config) => {
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
+      config?.configurable ?? {};
+
+    const sort = input.sort || "updated";
+    const perPage = input.perPage || 10;
+    const url = `https://api.github.com/user/repos?sort=${sort}&per_page=${perPage}&direction=desc`;
+
+    return JSON.stringify(
+      await callProxy({
+        agentType: "github",
+        method: "GET",
+        targetUrl: url,
+        sessionId,
+        requestId,
+        userId,
+        userAccessToken,
+        providerTokens,
+      })
+    );
+  },
+  {
+    name: "list_repositories",
+    description: "List the authenticated user's GitHub repositories. Use this when the user asks about their repos without specifying a specific one.",
+    schema: z.object({
+      sort: z.enum(["created", "updated", "pushed", "full_name"]).optional().describe("Sort by (default: updated)"),
+      perPage: z.number().optional().describe("Results per page (default 10)"),
+    }),
+  }
+);
+
 // ---------------------------------------------------------------------------
 // Slack Agent Tools
 // ---------------------------------------------------------------------------

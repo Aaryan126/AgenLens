@@ -12,6 +12,7 @@ import { useState, useRef, useEffect, useCallback, type FormEvent } from "react"
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessage {
   id: string;
@@ -292,28 +293,51 @@ export function ChatInterface() {
   );
 }
 
-/** Renders message text with basic markdown link support. */
+/** Renders message text with full markdown formatting. */
 function MessageContent({ text }: { text: string }) {
-  const parts = text.split(/\[([^\]]+)\]\(([^)]+)\)/g);
-
   return (
-    <p className="whitespace-pre-wrap text-sm">
-      {parts.map((part, i) => {
-        if (i % 3 === 1) {
-          // Link text - render as anchor with the next part as href.
-          const href = parts[i + 1];
-          return (
-            <a key={i} href={href} className="font-medium text-[var(--primary)] underline">
-              {part}
+    <div className="prose prose-sm prose-invert max-w-none text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => <h1 className="mb-2 mt-3 text-lg font-bold">{children}</h1>,
+          h2: ({ children }) => <h2 className="mb-2 mt-3 text-base font-bold">{children}</h2>,
+          h3: ({ children }) => <h3 className="mb-1 mt-2 text-sm font-semibold">{children}</h3>,
+          p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold text-[var(--foreground)]">{children}</strong>,
+          em: ({ children }) => <em className="italic text-[var(--muted-foreground)]">{children}</em>,
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--primary)] underline hover:opacity-80">
+              {children}
             </a>
-          );
-        }
-        if (i % 3 === 2) {
-          // Link href - already consumed above, skip.
-          return null;
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </p>
+          ),
+          ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>,
+          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+          code: ({ children, className }) => {
+            const isBlock = className?.includes("language-");
+            if (isBlock) {
+              return (
+                <pre className="my-2 overflow-x-auto rounded-lg bg-[var(--background)] p-3 text-xs">
+                  <code>{children}</code>
+                </pre>
+              );
+            }
+            return (
+              <code className="rounded bg-[var(--background)] px-1.5 py-0.5 text-xs font-mono">
+                {children}
+              </code>
+            );
+          },
+          hr: () => <hr className="my-3 border-[var(--border)]" />,
+          blockquote: ({ children }) => (
+            <blockquote className="my-2 border-l-2 border-[var(--primary)] pl-3 text-[var(--muted-foreground)]">
+              {children}
+            </blockquote>
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
   );
 }

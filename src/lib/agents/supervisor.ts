@@ -5,17 +5,14 @@
  * decomposes them into sub-tasks, delegates to specialized sub-agents,
  * and synthesizes their results into a coherent response.
  *
- * Architecture:
- * - User sends a natural language request via the chat interface
- * - Supervisor analyzes the request and determines which sub-agents are needed
- * - Each sub-agent is invoked with its own scoped tools (all routed through the proxy)
- * - Supervisor collects results and produces a final response
- *
- * The supervisor itself never calls external APIs directly.
+ * Uses LangGraph's PostgresSaver checkpointer for conversation memory.
+ * The full message history (including tool calls and results) is persisted
+ * per session thread and automatically loaded on each invocation.
  */
 
 import { ChatVertexAI } from "@langchain/google-vertexai";
 import { StateGraph, MessagesAnnotation, END } from "@langchain/langgraph";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { HumanMessage, SystemMessage, BaseMessage } from "@langchain/core/messages";
 import {
   listCalendarEvents,
@@ -28,6 +25,7 @@ import {
   listIssues,
   createIssue,
   getRepository,
+  listRepositories,
   searchSlackMessages,
   listSlackChannels,
   postSlackMessage,
@@ -56,11 +54,12 @@ CRITICAL BEHAVIOR:
 - When you get a list of emails/events/files, automatically read the details of each one and present them in a readable format.
 - When search results return message IDs, ALWAYS follow up by reading each message to get the actual content (subject, from, to, date).
 - Use context from the conversation. If you just listed 3 emails, and the user says "read them all", you already have the IDs.
+- You have full conversation history. Reference previous messages when the user says "that repo", "those emails", etc.
 
 Available sub-agents and their capabilities:
 - Calendar Agent: Read calendar events, check availability, create events (needs approval)
 - Email Agent: Search and read Gmail messages, send emails (needs approval)
-- GitHub Agent: Read repos, PRs, issues, create issues (needs approval)
+- GitHub Agent: Read repos, PRs, issues, list user repos, create issues (needs approval)
 - Slack Agent: Search messages, list channels, post messages (needs approval)
 - Drive Agent: Search and read file metadata from Google Drive
 
@@ -93,6 +92,7 @@ const ALL_TOOLS = [
   listIssues,
   createIssue,
   getRepository,
+  listRepositories,
   // Slack
   searchSlackMessages,
   listSlackChannels,
@@ -101,6 +101,25 @@ const ALL_TOOLS = [
   searchDriveFiles,
   getDriveFile,
 ];
+
+/** Singleton checkpointer instance. Initialized lazily. */
+let checkpointerInstance: PostgresSaver | null = null;
+
+/**
+ * Gets or creates the PostgresSaver checkpointer for conversation persistence.
+ * Uses the same database as the rest of the app.
+ */
+async function getCheckpointer(): Promise<PostgresSaver> {
+  if (!checkpointerInstance) {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error("DATABASE_URL is required for conversation memory");
+    }
+    checkpointerInstance = PostgresSaver.fromConnString(dbUrl);
+    await checkpointerInstance.setup();
+  }
+  return checkpointerInstance;
+}
 
 /**
  * Builds the LangGraph state graph for the supervisor agent.
@@ -112,9 +131,10 @@ const ALL_TOOLS = [
  * The graph loops between supervisor and tools until the supervisor
  * produces a final response without tool calls.
  *
- * @returns Compiled LangGraph runnable
+ * @param checkpointer - PostgresSaver instance for conversation persistence
+ * @returns Compiled LangGraph runnable with checkpointing
  */
-export function buildSupervisorGraph() {
+function buildSupervisorGraph(checkpointer: PostgresSaver) {
   const llmWithTools = llm.bindTools(ALL_TOOLS);
 
   /**
@@ -138,7 +158,8 @@ export function buildSupervisorGraph() {
    * Each tool call routes through the AgenLens proxy.
    */
   async function toolsNode(
-    state: typeof MessagesAnnotation.State
+    state: typeof MessagesAnnotation.State,
+    runnableConfig: { configurable?: Record<string, unknown> }
   ): Promise<{ messages: BaseMessage[] }> {
     const lastMessage = state.messages[state.messages.length - 1];
     const toolCalls =
@@ -173,13 +194,9 @@ export function buildSupervisorGraph() {
       }
 
       try {
-        // Cast needed because the union of all tool types makes invoke non-callable.
         const invokable = selectedTool as { invoke: (args: unknown, config?: unknown) => Promise<unknown> };
         const result = await invokable.invoke(toolCall.args, {
-          configurable: state.messages[0]
-            ? ((state.messages[0] as HumanMessage).additional_kwargs
-                ?.configurable as Record<string, unknown>)
-            : {},
+          configurable: runnableConfig?.configurable ?? {},
         });
 
         const { ToolMessage } = await import("@langchain/core/messages");
@@ -235,14 +252,16 @@ export function buildSupervisorGraph() {
     })
     .addEdge("tools", "supervisor");
 
-  return graph.compile();
+  return graph.compile({ checkpointer });
 }
 
 /**
  * Invokes the supervisor agent with a user message.
  *
- * This is the main entry point for the chat interface. It creates a new
- * graph invocation with the user's message and agent configuration.
+ * Uses the sessionId as the LangGraph thread_id so conversation history
+ * is automatically loaded and persisted via the PostgresSaver checkpointer.
+ * The full message history (including tool calls and results) is maintained
+ * across invocations within the same session.
  *
  * @param userMessage - The user's natural language request
  * @param config - Session, request, and auth configuration for the proxy
@@ -258,18 +277,26 @@ export async function invokeSupervisor(
     providerTokens?: Record<string, string>;
   }
 ): Promise<string> {
-  const graph = buildSupervisorGraph();
+  const checkpointer = await getCheckpointer();
+  const graph = buildSupervisorGraph(checkpointer);
 
-  const result = await graph.invoke({
-    messages: [
-      new HumanMessage({
-        content: userMessage,
-        additional_kwargs: {
-          configurable: config,
-        },
-      }),
-    ],
-  });
+  const result = await graph.invoke(
+    {
+      messages: [
+        new HumanMessage(userMessage),
+      ],
+    },
+    {
+      configurable: {
+        thread_id: config.sessionId,
+        sessionId: config.sessionId,
+        requestId: config.requestId,
+        userId: config.userId,
+        userAccessToken: config.userAccessToken,
+        providerTokens: config.providerTokens,
+      },
+    }
+  );
 
   const lastMessage = result.messages[result.messages.length - 1];
   return typeof lastMessage.content === "string"
