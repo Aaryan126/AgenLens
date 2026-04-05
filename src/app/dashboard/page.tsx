@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsBar } from "@/components/dashboard/stats-bar";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { AgentCardsGrid } from "@/components/dashboard/agent-cards";
+import { DelegationChain } from "@/components/dashboard/delegation-chain";
 import { auth0 } from "@/lib/auth0/client";
 import { db } from "@/lib/db";
 
@@ -79,11 +80,7 @@ export default async function DashboardOverview() {
               <CardTitle>Delegation Chain</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center justify-center py-8 text-[var(--muted-foreground)]">
-                <p className="text-sm">
-                  Send a message in Chat to see the delegation chain
-                </p>
-              </div>
+              <DelegationChain />
             </CardContent>
           </Card>
 

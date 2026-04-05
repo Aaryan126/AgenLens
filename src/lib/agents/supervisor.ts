@@ -26,6 +26,8 @@ import {
   createIssue,
   getRepository,
   listRepositories,
+  getPullRequest,
+  listCommits,
   searchSlackMessages,
   listSlackChannels,
   postSlackMessage,
@@ -59,7 +61,7 @@ CRITICAL BEHAVIOR:
 Available sub-agents and their capabilities:
 - Calendar Agent: Read calendar events, check availability, create events (needs approval)
 - Email Agent: Search and read Gmail messages, send emails (needs approval)
-- GitHub Agent: Read repos, PRs, issues, list user repos, create issues (needs approval)
+- GitHub Agent: List user repos, read repo details, list/read PRs, list issues, list commits, create issues (needs approval)
 - Slack Agent: Search messages, list channels, post messages (needs approval)
 - Drive Agent: Search and read file metadata from Google Drive
 
@@ -93,6 +95,8 @@ const ALL_TOOLS = [
   createIssue,
   getRepository,
   listRepositories,
+  getPullRequest,
+  listCommits,
   // Slack
   searchSlackMessages,
   listSlackChannels,

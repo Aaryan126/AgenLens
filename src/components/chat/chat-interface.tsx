@@ -9,7 +9,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { Send, Bot, User, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
@@ -29,6 +29,13 @@ export function ChatInterface() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  /** Starts a fresh conversation by clearing state and generating a new sessionId. */
+  const startNewChat = () => {
+    setMessages([]);
+    setSessionId(null);
+    setInput("");
+  };
 
   /** Loads the most recent chat session from the database. */
   const loadMessages = useCallback(async () => {
@@ -187,6 +194,16 @@ export function ChatInterface() {
 
   return (
     <div className="flex h-full flex-col">
+      {/* New Chat button - shown when there are messages */}
+      {messages.length > 0 && (
+        <div className="flex justify-end border-b border-[var(--border)] px-4 py-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={startNewChat} disabled={isLoading}>
+            <Plus className="h-3.5 w-3.5" />
+            New Chat
+          </Button>
+        </div>
+      )}
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 && (

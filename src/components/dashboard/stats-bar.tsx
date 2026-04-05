@@ -1,12 +1,23 @@
 /**
  * Stats bar component showing key metrics at the top of the dashboard.
- * Displays total actions, blocked actions, step-up auths, and active agents.
+ *
+ * Accepts initial server-rendered values as props and then polls
+ * /api/stats every 30 seconds to keep them fresh. The initial props
+ * prevent a flash of zeros on first load.
  */
 
 "use client";
 
+import { useEffect, useState } from "react";
 import { Activity, ShieldAlert, ShieldCheck, Bot } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+
+interface StatsData {
+  totalActions: number;
+  blockedActions: number;
+  stepUpAuths: number;
+  activeAgents: number;
+}
 
 interface StatsBarProps {
   totalActions: number;
@@ -15,34 +26,57 @@ interface StatsBarProps {
   activeAgents: number;
 }
 
-export function StatsBar({
-  totalActions,
-  blockedActions,
-  stepUpAuths,
-  activeAgents,
-}: StatsBarProps) {
+/** Polling interval in milliseconds. */
+const POLL_INTERVAL = 30_000;
+
+export function StatsBar(props: StatsBarProps) {
+  const [data, setData] = useState<StatsData>({
+    totalActions: props.totalActions,
+    blockedActions: props.blockedActions,
+    stepUpAuths: props.stepUpAuths,
+    activeAgents: props.activeAgents,
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch("/api/stats");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.data) {
+          setData(json.data);
+        }
+      } catch {
+        // Keep showing last known values.
+      }
+    }
+
+    const interval = setInterval(fetchStats, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
+
   const stats = [
     {
       label: "Total Actions",
-      value: totalActions,
+      value: data.totalActions,
       icon: Activity,
       color: "text-blue-400",
     },
     {
       label: "Blocked",
-      value: blockedActions,
+      value: data.blockedActions,
       icon: ShieldAlert,
       color: "text-red-400",
     },
     {
       label: "Step-Up Auths",
-      value: stepUpAuths,
+      value: data.stepUpAuths,
       icon: ShieldCheck,
       color: "text-yellow-400",
     },
     {
       label: "Active Agents",
-      value: activeAgents,
+      value: data.activeAgents,
       icon: Bot,
       color: "text-green-400",
     },

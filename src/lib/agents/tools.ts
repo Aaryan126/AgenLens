@@ -455,6 +455,73 @@ export const listRepositories = tool(
   }
 );
 
+/** Gets details of a specific pull request by number. */
+export const getPullRequest = tool(
+  async (input, config) => {
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
+      config?.configurable ?? {};
+
+    const url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.pullNumber}`;
+
+    return JSON.stringify(
+      await callProxy({
+        agentType: "github",
+        method: "GET",
+        targetUrl: url,
+        sessionId,
+        requestId,
+        userId,
+        userAccessToken,
+        providerTokens,
+      })
+    );
+  },
+  {
+    name: "get_pull_request",
+    description: "Get details of a specific GitHub pull request including title, description, diff stats, author, reviewers, and merge status.",
+    schema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      pullNumber: z.number().describe("Pull request number"),
+    }),
+  }
+);
+
+/** Lists recent commits for a repository. */
+export const listCommits = tool(
+  async (input, config) => {
+    const { sessionId, requestId, userId, userAccessToken, providerTokens } =
+      config?.configurable ?? {};
+
+    const perPage = input.perPage || 10;
+    let url = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/commits?per_page=${perPage}`;
+    if (input.sha) url += `&sha=${encodeURIComponent(input.sha)}`;
+
+    return JSON.stringify(
+      await callProxy({
+        agentType: "github",
+        method: "GET",
+        targetUrl: url,
+        sessionId,
+        requestId,
+        userId,
+        userAccessToken,
+        providerTokens,
+      })
+    );
+  },
+  {
+    name: "list_commits",
+    description: "List recent commits for a GitHub repository. Shows commit message, author, and date.",
+    schema: z.object({
+      owner: z.string().describe("Repository owner"),
+      repo: z.string().describe("Repository name"),
+      sha: z.string().optional().describe("Branch name or commit SHA to list commits from (default: default branch)"),
+      perPage: z.number().optional().describe("Results per page (default 10)"),
+    }),
+  }
+);
+
 // ---------------------------------------------------------------------------
 // Slack Agent Tools
 // ---------------------------------------------------------------------------
