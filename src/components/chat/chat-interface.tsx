@@ -13,6 +13,7 @@ import { Send, Bot, User, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
+import { ApprovalPrompt } from "@/components/approval-prompt";
 
 interface ChatMessage {
   id: string;
@@ -274,17 +275,20 @@ export function ChatInterface() {
         ))}
 
         {isLoading && (
-          <div className="mb-4 flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]">
-              <Bot className="h-4 w-4 text-white" />
-            </div>
-            <Card className="bg-[var(--secondary)] px-4 py-3">
-              <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Orchestrating sub-agents...
+          <>
+            <ApprovalPrompt mode="inline" />
+            <div className="mb-4 flex gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]">
+                <Bot className="h-4 w-4 text-white" />
               </div>
-            </Card>
-          </div>
+              <Card className="bg-[var(--secondary)] px-4 py-3">
+                <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Orchestrating sub-agents...
+                </div>
+              </Card>
+            </div>
+          </>
         )}
 
         <div ref={messagesEndRef} />

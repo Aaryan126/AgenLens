@@ -52,7 +52,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const tokenData = await tokenRes.json();
 
     if (!tokenRes.ok) {
-      console.error("[Link] Token exchange failed:", tokenData);
+      // Token exchange failed.
       return NextResponse.redirect(`${baseUrl}/dashboard/connections?error=token_exchange`);
     }
 
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // The secondary user ID is in the sub claim (e.g., "github|12345").
     const secondaryUserId = profile.sub;
     if (!secondaryUserId) {
-      console.error("[Link] No sub in profile:", profile);
+      // No sub claim in profile.
       return NextResponse.redirect(`${baseUrl}/dashboard/connections?error=no_profile`);
     }
 
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const mgmtToken = await mgmtTokenRes.json();
 
     if (!mgmtToken.access_token) {
-      console.error("[Link] Failed to get management token");
+      // Failed to get management token.
       return NextResponse.redirect(`${baseUrl}/dashboard/connections?error=mgmt_token`);
     }
 
@@ -107,13 +107,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     if (!linkRes.ok) {
       const linkError = await linkRes.json().catch(() => ({}));
-      console.error("[Link] Account linking failed:", linkError);
+      // Account linking failed; 409 means already linked (acceptable).
       // If already linked, that's fine.
       if (linkError.statusCode !== 409) {
         return NextResponse.redirect(`${baseUrl}/dashboard/connections?error=link_failed`);
       }
     } else {
-      console.log(`[Link] Successfully linked ${secondaryUserId} to ${linkState.primaryUserId}`);
+      // Successfully linked.
     }
 
     // Clear the cookie and redirect.
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     response.cookies.delete("agenlens_link_state");
     return response;
   } catch (error) {
-    console.error("[Link] Error:", error);
+    // Unexpected error during account linking.
     return NextResponse.redirect(`${baseUrl}/dashboard/connections?error=unknown`);
   }
 }

@@ -43,8 +43,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         },
         returnTo: "/dashboard/connections",
       });
-    } catch (error) {
-      console.error("[Connect] Re-auth failed:", error);
+    } catch {
       return NextResponse.json({ error: "Failed to reconnect" }, { status: 500 });
     }
   }

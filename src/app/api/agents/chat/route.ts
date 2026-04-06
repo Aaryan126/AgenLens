@@ -39,10 +39,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const activeSessionId = sessionId || generateSessionId();
     const requestId = generateRequestId();
 
-    // Log session info for debugging.
-    console.log("[Chat] Session user:", session.user.sub);
-    console.log("[Chat] Session tokenSet keys:", Object.keys(session.tokenSet || {}));
-
     // Get the user's access token for Token Vault exchanges.
     const { token: accessToken } = await auth0.getAccessToken();
 
@@ -58,13 +54,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const connections = ["google-oauth2", "github", "slack"];
 
     // Attempt 1: Token Vault (getAccessTokenForConnection).
+    // This method uses the session's refresh token to get a fresh provider token.
     for (const connection of connections) {
       try {
         const result = await auth0.getAccessTokenForConnection({ connection });
         providerTokens[connection] = result.token;
-        console.log(`[Chat] Got token for ${connection} via Token Vault`);
       } catch {
-        // Will try Management API fallback below.
+        // Token Vault exchange failed; will try Management API fallback.
       }
     }
 
@@ -100,14 +96,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
                   : identity.provider;
                 if (!providerTokens[connName]) {
                   providerTokens[connName] = identity.access_token;
-                  console.log(`[Chat] Got token for ${connName} via Management API`);
                 }
               }
             }
           }
         }
-      } catch (err) {
-        console.error("[Chat] Failed to fetch provider tokens via Management API:", err);
+      } catch {
+        // Management API fallback also failed; agents will report auth errors.
       }
     }
 

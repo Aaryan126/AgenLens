@@ -60,15 +60,20 @@ export default function ConnectionsPage() {
     fetchStatus();
   }, []);
 
+  const [error, setError] = useState(false);
+
   const fetchStatus = async () => {
     try {
       const response = await fetch("/api/connections/status");
       if (response.ok) {
         const json = await response.json();
         setStatuses(json.data || {});
+        setError(false);
+      } else {
+        setError(true);
       }
     } catch {
-      // Handle silently.
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -83,6 +88,16 @@ export default function ConnectionsPage() {
       <div className="flex items-center justify-center py-24 text-[var(--muted-foreground)]">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
         Checking connections...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-[var(--muted-foreground)]">
+        <Cable className="mb-3 h-8 w-8 text-red-400" />
+        <p className="text-sm">Failed to check connection status</p>
+        <p className="text-xs">Please check your network and try refreshing the page</p>
       </div>
     );
   }

@@ -94,23 +94,25 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
-/// Records CIBA step-up authentication events.
+/// Records step-up authentication events.
 /// Created when the proxy determines an agent action needs explicit user approval.
+/// The user approves or denies via the in-app approval flow.
 model StepUpEvent {
-  id                String   @id @default(cuid())
-  userId            String   @map("user_id")
-  activityId        String   @unique @map("activity_id")
-  agentType         String   @map("agent_type")
-  actionDescription String   @map("action_description")
-  cibaAuthReqId     String   @map("ciba_auth_req_id")
-  status            String   @default("pending")
-  requestedAt       DateTime @default(now()) @map("requested_at")
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  activityId        String?   @unique @map("activity_id")
+  agentType         String    @map("agent_type")
+  actionDescription String    @map("action_description")
+  requestId         String?   @map("request_id")
+  targetService     String?   @map("target_service")
+  httpMethod        String?   @map("http_method")
+  endpoint          String?
+  status            String    @default("pending")
+  requestedAt       DateTime  @default(now()) @map("requested_at")
   resolvedAt        DateTime? @map("resolved_at")
-  tokenExpiresAt    DateTime? @map("token_expires_at")
 
-  activity AgentActivity @relation(fields: [activityId], references: [id])
+  activity AgentActivity? @relation(fields: [activityId], references: [id])
 
   @@index([userId, status])
-  @@index([cibaAuthReqId])
   @@map("step_up_events")
 }

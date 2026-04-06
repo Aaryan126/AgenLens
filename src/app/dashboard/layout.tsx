@@ -6,6 +6,7 @@
 
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { ApprovalToast } from "@/components/approval-toast";
 import { auth0 } from "@/lib/auth0/client";
 
 export default async function DashboardLayout({
@@ -22,6 +23,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen">
       <Sidebar />
+      <ApprovalToast />
       <main className="ml-64 min-h-screen p-8">{children}</main>
     </div>
   );

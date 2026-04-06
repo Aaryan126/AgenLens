@@ -61,9 +61,8 @@ export function ActivityFeed({
 }: ActivityFeedProps) {
   const [activities, setActivities] =
     useState<AgentActivity[]>(initialActivities);
+  const [error, setError] = useState(false);
 
-  // Poll for new activities every 3 seconds.
-  // In production, this would use WebSocket via Socket.io.
   useEffect(() => {
     const fetchActivities = async () => {
       try {
@@ -74,9 +73,12 @@ export function ActivityFeed({
         if (response.ok) {
           const json = await response.json();
           setActivities(json.data || []);
+          setError(false);
+        } else if (response.status === 401) {
+          setError(true);
         }
       } catch {
-        // Silently handle fetch errors - feed will retry on next interval.
+        setError(true);
       }
     };
 
@@ -85,6 +87,16 @@ export function ActivityFeed({
 
     return () => clearInterval(interval);
   }, [maxItems, agentFilter]);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-[var(--muted-foreground)]">
+        <ShieldAlert className="mb-3 h-8 w-8 text-red-400" />
+        <p className="text-sm">Failed to load activity</p>
+        <p className="text-xs">Check your connection or sign in again</p>
+      </div>
+    );
+  }
 
   if (activities.length === 0) {
     return (

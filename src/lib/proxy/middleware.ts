@@ -8,26 +8,24 @@
  * 1. Receives the request from a sub-agent
  * 2. Evaluates it against the policy engine
  * 3. If blocked, logs the violation and returns an error
- * 4. If step-up required, initiates CIBA and waits for approval
- * 5. If allowed, injects the auth token from Token Vault and forwards the request
+ * 4. If step-up required, creates an in-app approval and polls for user decision
+ * 5. If allowed, injects the auth token and forwards the request
  * 6. Logs the full request/response cycle
- * 7. Emits a real-time event for the dashboard
  *
  * Sub-agents NEVER hold raw third-party tokens. The proxy injects them.
  */
 
 import { auth0 } from "@/lib/auth0/client";
-import { initiateCIBA, pollCIBAResult } from "@/lib/auth0/client";
 import { evaluatePolicy } from "@/lib/proxy/policy-engine";
 import { logActivity } from "@/lib/proxy/logger";
 import { db } from "@/lib/db";
 import type { AgentType, ProxyRequest, ProxyResponse } from "@/lib/types";
 import { AGENT_SCOPE_CONFIG } from "@/lib/types";
 
-/** Maximum number of CIBA polling attempts before timing out. */
-const CIBA_MAX_POLLS = 60;
-/** Interval between CIBA polling attempts in milliseconds. */
-const CIBA_POLL_INTERVAL_MS = 5000;
+/** Maximum number of polling attempts before timing out (12 * 5s = 60s). */
+const APPROVAL_MAX_POLLS = 12;
+/** Interval between polling attempts in milliseconds. */
+const APPROVAL_POLL_INTERVAL_MS = 5000;
 
 /**
  * Processes a proxied API request from a sub-agent.
@@ -38,6 +36,7 @@ const CIBA_POLL_INTERVAL_MS = 5000;
  *
  * @param request - The sub-agent's API request (without auth headers)
  * @param userAccessToken - The user's Auth0 access token for Token Vault exchange
+ * @param providerTokens - Pre-fetched provider tokens from the chat route
  * @returns The proxied response, or an error response if blocked
  */
 export async function proxyRequest(
@@ -79,15 +78,15 @@ export async function proxyRequest(
         action: `Denied: ${stepUpResult.reason}`,
         policyResult: "step_up_required",
         scopesUsed: [],
-        stepUpId: stepUpResult.authReqId,
-        stepUpResult: "denied",
+        stepUpId: stepUpResult.approvalId,
+        stepUpResult: stepUpResult.status,
       });
 
       return {
         status: 403,
         headers: {},
         body: {
-          error: "step_up_denied",
+          error: stepUpResult.status === "expired" ? "step_up_expired" : "step_up_denied",
           reason: stepUpResult.reason,
         },
         durationMs: Date.now() - startTime,
@@ -95,7 +94,7 @@ export async function proxyRequest(
     }
   }
 
-  // Step 4: Get the scoped token from Token Vault.
+  // Step 4: Get the scoped token.
   const agentType = request.agentType as Exclude<AgentType, "supervisor">;
   const config = AGENT_SCOPE_CONFIG[agentType];
 
@@ -110,20 +109,22 @@ export async function proxyRequest(
 
   let providerToken: string;
   try {
-    // Use pre-fetched provider token if available (fetched in chat route where session exists).
-    // Fall back to SDK method (only works when session context is available).
-    const preFetched = providerTokens?.[config.connection];
-    if (preFetched) {
-      providerToken = preFetched;
+    // Always fetch a fresh token from Management API right before forwarding.
+    // Pre-fetched tokens may be stale if approval took time.
+    const freshToken = await fetchFreshProviderToken(request.userId, config.connection);
+    if (freshToken) {
+      providerToken = freshToken;
     } else {
-      const tokenResult = await auth0.getAccessTokenForConnection({
-        connection: config.connection,
-      });
-      providerToken = tokenResult.token;
+      // Fall back to pre-fetched token.
+      const preFetched = providerTokens?.[config.connection];
+      if (preFetched) {
+        providerToken = preFetched;
+      } else {
+        throw new Error(`No token available for ${config.connection}`);
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Token exchange failed";
-    console.error("[Proxy] Token exchange failed:", message);
 
     await logActivity({
       request,
@@ -156,7 +157,6 @@ export async function proxyRequest(
 
     const responseBody = await externalResponse.json().catch(() => null);
 
-    // Detect expired token and return a clear error.
     if (externalResponse.status === 401) {
       await logActivity({
         request,
@@ -197,7 +197,7 @@ export async function proxyRequest(
     request,
     response,
     action,
-    policyResult: "allowed",
+    policyResult: policyEval.result === "step_up_required" ? "step_up_required" : "allowed",
     scopesUsed: config.defaultScopes,
   });
 
@@ -205,110 +205,228 @@ export async function proxyRequest(
 }
 
 /**
- * Handles step-up authentication via CIBA for a sensitive action.
+ * Handles step-up authentication via in-app approval.
  *
- * Initiates a CIBA request, creates a step-up event in the database,
- * and polls for the user's decision.
+ * Creates a pending StepUpEvent in the database and polls for the user's
+ * decision. The frontend shows an approval card and calls /api/approvals/resolve
+ * to approve or deny.
  *
  * @param request - The proxy request that triggered step-up
- * @returns Whether the user approved and the CIBA auth_req_id
+ * @returns Whether the user approved, the reason, and the approval ID
  */
 async function handleStepUp(
   request: ProxyRequest
-): Promise<{ approved: boolean; reason: string; authReqId?: string }> {
-  const bindingMessage = `${request.agentType} agent wants to ${request.method} ${request.url}`;
+): Promise<{ approved: boolean; reason: string; approvalId?: string; status: string }> {
+  const actionDescription = buildApprovalDescription(request);
 
   try {
-    const cibaResult = await initiateCIBA(request.userId, bindingMessage, [
-      {
-        type: "agent_action",
-        agent: request.agentType,
-        method: request.method,
-        resource: request.url,
-      },
-    ]);
-
-    // Create step-up event in DB for dashboard visibility.
-    await db.stepUpEvent.create({
+    // Create a pending approval in the database.
+    const approval = await db.stepUpEvent.create({
       data: {
         userId: request.userId,
-        activityId: "", // Will be linked when activity is logged.
         agentType: request.agentType,
-        actionDescription: bindingMessage,
-        cibaAuthReqId: cibaResult.auth_req_id,
+        actionDescription,
+        requestId: request.requestId,
+        targetService: request.targetService,
+        httpMethod: request.method,
+        endpoint: request.url,
         status: "pending",
       },
     });
 
-    // Poll for user decision.
-    const pollInterval = Math.max(
-      cibaResult.interval * 1000,
-      CIBA_POLL_INTERVAL_MS
-    );
 
-    for (let i = 0; i < CIBA_MAX_POLLS; i++) {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    // Poll the database for the user's decision.
+    for (let i = 0; i < APPROVAL_MAX_POLLS; i++) {
+      await new Promise((resolve) => setTimeout(resolve, APPROVAL_POLL_INTERVAL_MS));
 
-      const result = await pollCIBAResult(cibaResult.auth_req_id);
+      const updated = await db.stepUpEvent.findUnique({
+        where: { id: approval.id },
+      });
 
-      if (result) {
-        await db.stepUpEvent.updateMany({
-          where: { cibaAuthReqId: cibaResult.auth_req_id },
-          data: {
-            status: "approved",
-            resolvedAt: new Date(),
-            tokenExpiresAt: new Date(
-              Date.now() + result.expires_in * 1000
-            ),
-          },
-        });
+      if (!updated) {
+        return { approved: false, reason: "Approval record not found", status: "denied" };
+      }
 
+      if (updated.status === "approved") {
         return {
           approved: true,
           reason: "User approved the action",
-          authReqId: cibaResult.auth_req_id,
+          approvalId: approval.id,
+          status: "approved",
+        };
+      }
+
+      if (updated.status === "denied") {
+        return {
+          approved: false,
+          reason: "User denied the action",
+          approvalId: approval.id,
+          status: "denied",
         };
       }
     }
 
-    // Timed out waiting for user response.
-    await db.stepUpEvent.updateMany({
-      where: { cibaAuthReqId: cibaResult.auth_req_id },
+    // Timed out.
+    await db.stepUpEvent.update({
+      where: { id: approval.id },
       data: { status: "expired", resolvedAt: new Date() },
     });
 
     return {
       approved: false,
-      reason: "Step-up authentication timed out",
-      authReqId: cibaResult.auth_req_id,
+      reason: "Approval timed out after 60 seconds",
+      approvalId: approval.id,
+      status: "expired",
     };
   } catch (error) {
-    const isDenied =
-      error instanceof Error && error.message.includes("access_denied");
-
-    if (isDenied) {
-      return {
-        approved: false,
-        reason: "User denied the action",
-      };
-    }
-
     return {
       approved: false,
       reason: `Step-up authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      status: "denied",
     };
   }
 }
 
 /**
+ * Fetches a fresh provider token for the user.
+ *
+ * Strategy:
+ * 1. Get the user's identity from Auth0 Management API
+ * 2. If a refresh_token is available for the provider, exchange it directly
+ *    with the provider's token endpoint for a fresh access token
+ * 3. Fall back to the stored access_token if no refresh_token
+ *
+ * This handles Google access token expiry (1 hour) automatically by using
+ * the refresh token to get a new access token on every request.
+ */
+async function fetchFreshProviderToken(
+  userId: string,
+  connection: string
+): Promise<string | null> {
+  try {
+    const domain = process.env.AUTH0_ISSUER_BASE_URL;
+    const mgmtTokenRes = await fetch(`${domain}/oauth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.AUTH0_CLIENT_ID,
+        client_secret: process.env.AUTH0_CLIENT_SECRET,
+        audience: `${domain}/api/v2/`,
+        grant_type: "client_credentials",
+      }),
+    });
+    const mgmtToken = await mgmtTokenRes.json();
+    if (!mgmtToken.access_token) return null;
+
+    const userRes = await fetch(
+      `${domain}/api/v2/users/${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${mgmtToken.access_token}` } }
+    );
+    const userData = await userRes.json();
+
+    if (!userData.identities) return null;
+
+    for (const identity of userData.identities) {
+      const connName = identity.connection || identity.provider;
+      if (connName !== connection) continue;
+
+      // If we have a refresh token, exchange it for a fresh access token.
+      if (identity.refresh_token && connection === "google-oauth2") {
+        const freshToken = await refreshGoogleToken(identity.refresh_token);
+        if (freshToken) {
+          return freshToken;
+        }
+      }
+
+      // Fall back to stored access token.
+      if (identity.access_token) {
+        return identity.access_token;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Exchanges a Google refresh token for a fresh access token
+ * directly with Google's OAuth endpoint.
+ */
+async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
+  try {
+    // Google OAuth credentials are stored in the Auth0 connection,
+    // but we also need them here for direct refresh.
+    // These are the same credentials used in the Auth0 Google connection.
+    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return null;
+    }
+
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return null;
+    }
+
+    const data = await res.json();
+    return data.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Builds a human-readable description for an approval prompt.
+ * Designed to be clear to end users about what the agent wants to do.
+ */
+function buildApprovalDescription(request: ProxyRequest): string {
+  const agent = request.agentType.charAt(0).toUpperCase() + request.agentType.slice(1);
+  const method = request.method.toUpperCase();
+  const url = request.url;
+
+  if (url.includes("googleapis.com/calendar") && method === "POST") {
+    const summary = (request.body as Record<string, unknown>)?.summary || "an event";
+    return `${agent} Agent wants to create a calendar event: "${summary}"`;
+  }
+
+  if (url.includes("googleapis.com/gmail") && url.includes("/send")) {
+    const body = request.body as Record<string, unknown>;
+    return `${agent} Agent wants to send an email`;
+  }
+
+  if (url.includes("api.github.com") && url.includes("/issues") && method === "POST") {
+    const title = (request.body as Record<string, unknown>)?.title || "an issue";
+    return `${agent} Agent wants to create a GitHub issue: "${title}"`;
+  }
+
+  if (url.includes("slack.com/api") && url.includes("chat.postMessage")) {
+    const channel = (request.body as Record<string, unknown>)?.channel || "a channel";
+    return `${agent} Agent wants to post a message to Slack channel: ${channel}`;
+  }
+
+  if (url.includes("googleapis.com/drive") && method === "POST") {
+    return `${agent} Agent wants to upload a file to Google Drive`;
+  }
+
+  return `${agent} Agent wants to perform a ${method} request to ${request.targetService}`;
+}
+
+/**
  * Builds a human-readable description of an API action for the activity log.
- *
- * Translates raw HTTP method + endpoint into something meaningful like
- * "Read calendar event 'Design Sync'" instead of "GET /calendar/v3/...".
- *
- * @param request - The proxied request
- * @param response - The response from the external API
- * @returns Human-readable action description
  */
 function buildActionDescription(
   request: ProxyRequest,
@@ -318,84 +436,43 @@ function buildActionDescription(
   const url = request.url;
   const agent = request.agentType;
 
-  // Google Calendar actions.
   if (url.includes("googleapis.com/calendar")) {
-    if (method === "GET" && url.includes("/events")) {
-      return `Read calendar events`;
-    }
-    if (method === "POST" && url.includes("/events")) {
-      return `Created a calendar event`;
-    }
-    if (method === "PUT" || method === "PATCH") {
-      return `Updated a calendar event`;
-    }
-    if (method === "DELETE") {
-      return `Deleted a calendar event`;
-    }
+    if (method === "GET" && url.includes("/events")) return `Read calendar events`;
+    if (method === "POST" && url.includes("/events")) return `Created a calendar event`;
+    if (method === "PUT" || method === "PATCH") return `Updated a calendar event`;
+    if (method === "DELETE") return `Deleted a calendar event`;
     return `Accessed Google Calendar`;
   }
 
-  // Gmail actions.
   if (url.includes("googleapis.com/gmail")) {
-    if (method === "GET" && url.includes("/messages")) {
-      return `Read email messages`;
-    }
-    if (method === "POST" && url.includes("/send")) {
-      return `Sent an email`;
-    }
-    if (method === "GET" && url.includes("/threads")) {
-      return `Read email threads`;
-    }
-    if (method === "POST" && url.includes("/drafts")) {
-      return `Created an email draft`;
-    }
+    if (method === "GET" && url.includes("/messages")) return `Read email messages`;
+    if (method === "POST" && url.includes("/send")) return `Sent an email`;
+    if (method === "GET" && url.includes("/threads")) return `Read email threads`;
+    if (method === "POST" && url.includes("/drafts")) return `Created an email draft`;
     return `Accessed Gmail`;
   }
 
-  // GitHub actions.
   if (url.includes("api.github.com")) {
-    if (url.includes("/pulls")) {
-      return method === "GET"
-        ? `Read pull requests`
-        : `Modified a pull request`;
-    }
-    if (url.includes("/issues")) {
-      return method === "GET" ? `Read issues` : `Modified an issue`;
-    }
-    if (url.includes("/repos") && method === "GET") {
-      return `Read repository data`;
-    }
+    if (url.includes("/pulls")) return method === "GET" ? `Read pull requests` : `Modified a pull request`;
+    if (url.includes("/issues")) return method === "GET" ? `Read issues` : `Created an issue`;
+    if (url.includes("/commits")) return `Read commits`;
+    if (url.includes("/repos") && method === "GET") return `Read repository data`;
     return `Accessed GitHub`;
   }
 
-  // Slack actions.
   if (url.includes("slack.com/api")) {
-    if (url.includes("conversations")) {
-      return `Read Slack channels`;
-    }
-    if (url.includes("chat.postMessage")) {
-      return `Posted a Slack message`;
-    }
-    if (url.includes("search")) {
-      return `Searched Slack messages`;
-    }
-    if (url.includes("users")) {
-      return `Looked up Slack users`;
-    }
+    if (url.includes("conversations")) return `Read Slack channels`;
+    if (url.includes("chat.postMessage")) return `Posted a Slack message`;
+    if (url.includes("search")) return `Searched Slack messages`;
+    if (url.includes("users")) return `Looked up Slack users`;
     return `Accessed Slack`;
   }
 
-  // Google Drive actions.
   if (url.includes("googleapis.com/drive")) {
-    if (method === "GET" && url.includes("/files")) {
-      return `Read Drive files`;
-    }
-    if (method === "POST") {
-      return `Uploaded a file to Drive`;
-    }
+    if (method === "GET" && url.includes("/files")) return `Read Drive files`;
+    if (method === "POST") return `Uploaded a file to Drive`;
     return `Accessed Google Drive`;
   }
 
-  // Fallback: generic description.
   return `${agent} agent: ${method} ${new URL(url).pathname}`;
 }
