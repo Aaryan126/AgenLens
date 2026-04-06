@@ -4,10 +4,6 @@
  * Polls for pending step-up approvals and renders them either:
  * - Inline in the chat (replacing the loading indicator)
  * - As a toast notification on other pages
- *
- * The component auto-polls every 2 seconds and renders approval cards
- * with Approve/Deny buttons. After resolution, shows a status badge
- * briefly before disappearing.
  */
 
 "use client";
@@ -15,7 +11,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ShieldAlert, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +24,6 @@ interface PendingApproval {
 }
 
 interface ApprovalPromptProps {
-  /** Render mode: inline shows in chat flow, toast shows as floating notification. */
   mode: "inline" | "toast";
 }
 
@@ -78,7 +72,6 @@ export function ApprovalPrompt({ mode }: ApprovalPromptProps) {
     }
   };
 
-  // Clear resolved items after 3 seconds.
   useEffect(() => {
     if (resolved.size === 0) return;
     const timer = setTimeout(() => {
@@ -118,11 +111,10 @@ export function ApprovalPrompt({ mode }: ApprovalPromptProps) {
     );
   }
 
-  // Inline mode for chat.
   return (
-    <div className="mb-4 flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-500/20">
-        <ShieldAlert className="h-4 w-4 text-yellow-400" />
+    <div className="mb-5 flex gap-3">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-yellow-500/15">
+        <ShieldAlert className="h-3.5 w-3.5 text-yellow-400" />
       </div>
       <div className="flex flex-col gap-2">
         {allItems.map((item) => (
@@ -156,49 +148,48 @@ interface ApprovalCardProps {
 function ApprovalCard({ item, resolving, onResolve, compact }: ApprovalCardProps) {
   if (item.status === "approved") {
     return (
-      <Card className="border-green-500/30 bg-green-500/10 px-4 py-3">
-        <div className="flex items-center gap-2 text-sm text-green-400">
-          <Check className="h-4 w-4" />
-          Action approved - proceeding...
+      <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-2.5">
+        <div className="flex items-center gap-2 text-[13px] text-green-400">
+          <Check className="h-3.5 w-3.5" />
+          Action approved
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (item.status === "denied") {
     return (
-      <Card className="border-red-500/30 bg-red-500/10 px-4 py-3">
-        <div className="flex items-center gap-2 text-sm text-red-400">
-          <X className="h-4 w-4" />
+      <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5">
+        <div className="flex items-center gap-2 text-[13px] text-red-400">
+          <X className="h-3.5 w-3.5" />
           Action denied
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className={cn(
-      "border-yellow-500/30 bg-yellow-500/5",
-      compact ? "p-3" : "px-4 py-3",
-      compact && "w-96 shadow-lg"
+    <div className={cn(
+      "rounded-xl border border-yellow-500/20 bg-yellow-500/5",
+      compact ? "w-80 p-3 shadow-lg" : "px-4 py-3",
     )}>
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <div className="flex items-start gap-2">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-yellow-400" />
           <div>
-            <p className="text-sm font-medium">Approval Required</p>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            <p className="text-[13px] font-medium">Approval Required</p>
+            <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
               {item.actionDescription}
             </p>
             {item.targetService && (
-              <div className="mt-1 flex gap-2">
-                <Badge variant="outline" className="text-xs">{item.targetService}</Badge>
-                {item.httpMethod && <Badge variant="outline" className="text-xs">{item.httpMethod}</Badge>}
+              <div className="mt-1 flex gap-1.5">
+                <Badge variant="outline">{item.targetService}</Badge>
+                {item.httpMethod && <Badge variant="outline">{item.httpMethod}</Badge>}
               </div>
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <Button
             size="sm"
             className="gap-1"
@@ -220,6 +211,6 @@ function ApprovalCard({ item, resolving, onResolve, compact }: ApprovalCardProps
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

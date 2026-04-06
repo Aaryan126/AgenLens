@@ -24,7 +24,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen">
       <Sidebar />
       <ApprovalToast />
-      <main className="ml-64 min-h-screen p-8">{children}</main>
+      <main className="page-gradient ml-60 min-h-screen px-8 py-6">{children}</main>
     </div>
   );
 }

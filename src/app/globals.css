@@ -9,20 +9,20 @@
   --popover-foreground: #fafafa;
   --primary: #3b82f6;
   --primary-foreground: #fafafa;
-  --secondary: #1e1e2e;
+  --secondary: #131320;
   --secondary-foreground: #fafafa;
   --muted: #18181b;
   --muted-foreground: #a1a1aa;
-  --accent: #1e1e2e;
+  --accent: #1a1a2e;
   --accent-foreground: #fafafa;
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
+  --border: #1f1f2e;
+  --input: #1f1f2e;
   --ring: #3b82f6;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  /* Agent colors for the activity feed */
+  /* Agent colors */
   --agent-calendar: #f59e0b;
   --agent-email: #ef4444;
   --agent-github: #a855f7;
@@ -34,23 +34,31 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--muted);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+/* Subtle page-level gradient */
+.page-gradient {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(59, 130, 246, 0.06), transparent),
+    var(--background);
 }

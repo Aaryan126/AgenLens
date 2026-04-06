@@ -36,11 +36,11 @@ export default async function DashboardOverview() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
+        <h1 className="text-lg font-semibold">Dashboard</h1>
+        <p className="text-xs text-[var(--muted-foreground)]">
           Monitor and control your AI agents in real-time
         </p>
       </div>
@@ -54,27 +54,27 @@ export default async function DashboardOverview() {
       />
 
       {/* Main content grid */}
-      <div className="grid gap-8 lg:grid-cols-5">
-        {/* Activity feed - takes 3 columns */}
-        <div className="lg:col-span-3">
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Activity feed */}
+        <div className="lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Live Activity Feed</span>
-                <span className="flex items-center gap-1.5 text-xs font-normal text-[var(--muted-foreground)]">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                <span className="flex items-center gap-1.5 text-[11px] font-normal text-[var(--muted-foreground)]">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
                   Live
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[600px] overflow-y-auto">
+            <CardContent className="max-h-[500px] overflow-y-auto">
               <ActivityFeed maxItems={20} />
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick info panel - takes 2 columns */}
-        <div className="space-y-4 lg:col-span-2">
+        {/* Side panel */}
+        <div className="space-y-5">
           <Card>
             <CardHeader>
               <CardTitle>Delegation Chain</CardTitle>
@@ -89,8 +89,8 @@ export default async function DashboardOverview() {
               <CardTitle>Pending Approvals</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center justify-center py-8 text-[var(--muted-foreground)]">
-                <p className="text-sm">No pending step-up approvals</p>
+              <div className="flex flex-col items-center justify-center py-6 text-[var(--muted-foreground)]">
+                <p className="text-xs">No pending step-up approvals</p>
               </div>
             </CardContent>
           </Card>
@@ -99,7 +99,7 @@ export default async function DashboardOverview() {
 
       {/* Agent cards */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold">Agent Permissions</h2>
+        <h2 className="mb-3 text-sm font-semibold">Agent Permissions</h2>
         <AgentCardsGrid />
       </div>
     </div>

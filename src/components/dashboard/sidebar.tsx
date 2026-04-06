@@ -2,7 +2,8 @@
  * Dashboard sidebar navigation component.
  *
  * Provides navigation to all dashboard sections, shows the current
- * user's profile, and includes a logout button.
+ * user's profile, and includes a logout button. Nav items are grouped
+ * into logical sections with the Chat action visually separated.
  */
 
 "use client";
@@ -25,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
+const dashboardItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/activity", label: "Activity Log", icon: Activity },
   { href: "/dashboard/agents", label: "Agents", icon: Bot },
@@ -33,7 +34,6 @@ const navItems = [
   { href: "/dashboard/approvals", label: "Approvals", icon: ShieldCheck },
   { href: "/dashboard/connections", label: "Connections", icon: Cable },
   { href: "/dashboard/analytics", label: "Analytics", icon: ChartBar },
-  { href: "/chat", label: "Chat", icon: MessageSquare },
 ];
 
 interface UserInfo {
@@ -61,75 +61,96 @@ export function Sidebar() {
     fetchUser();
   }, []);
 
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-[var(--border)] bg-[var(--card)]">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-[var(--border)] bg-[var(--card)]">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b border-[var(--border)] px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)]">
-          <Bot className="h-4 w-4 text-white" />
+      <div className="flex h-14 items-center gap-2.5 px-5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--primary)]">
+          <Bot className="h-3.5 w-3.5 text-white" />
         </div>
-        <span className="text-lg font-bold">AgenLens</span>
+        <span className="text-sm font-semibold tracking-tight">AgenLens</span>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
-
-          return (
+      {/* Dashboard navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 pt-2">
+        <p className="mb-2 px-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
+          Dashboard
+        </p>
+        <div className="space-y-0.5">
+          {dashboardItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                isActive
-                  ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] transition-colors",
+                isActive(item.href)
+                  ? "bg-[var(--primary)]/10 text-[var(--primary)] font-medium"
                   : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
               )}
             >
               <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Chat link, visually separated */}
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <p className="mb-2 px-2 text-[11px] font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
+            Agent
+          </p>
+          <Link
+            href="/chat"
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] transition-colors",
+              pathname === "/chat"
+                ? "bg-[var(--primary)]/10 text-[var(--primary)] font-medium"
+                : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
+            )}
+          >
+            <MessageSquare className="h-4 w-4" />
+            Chat
+          </Link>
+        </div>
       </nav>
 
       {/* User info and logout */}
-      <div className="border-t border-[var(--border)] p-4">
+      <div className="border-t border-[var(--border)] p-3">
         {user ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
               {user.picture ? (
                 <img
                   src={user.picture}
-                  alt=""
-                  className="h-8 w-8 rounded-full"
+                  alt="Profile"
+                  className="h-7 w-7 rounded-full"
                 />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--secondary)]">
-                  <User className="h-4 w-4 text-[var(--muted-foreground)]" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--secondary)]">
+                  <User className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
+                <p className="truncate text-[13px] font-medium leading-tight">
                   {user.name || "User"}
                 </p>
-                <p className="truncate text-xs text-[var(--muted-foreground)]">
+                <p className="truncate text-[11px] text-[var(--muted-foreground)]">
                   {user.email || ""}
                 </p>
               </div>
             </div>
             <a href="/auth/logout" className="block">
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-[var(--muted-foreground)]">
-                <LogOut className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-[var(--muted-foreground)] text-xs">
+                <LogOut className="h-3.5 w-3.5" />
                 Sign Out
               </Button>
             </a>
           </div>
         ) : (
-          <p className="text-xs text-[var(--muted-foreground)]">
+          <p className="px-2 text-[11px] text-[var(--muted-foreground)]">
             Powered by Auth0 Token Vault
           </p>
         )}

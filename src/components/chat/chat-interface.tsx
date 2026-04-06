@@ -9,9 +9,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
-import { Send, Bot, User, Loader2, Plus } from "lucide-react";
+import { Send, Bot, User, Loader2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
 import { ApprovalPrompt } from "@/components/approval-prompt";
 
@@ -30,6 +29,7 @@ export function ChatInterface() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   /** Starts a fresh conversation by clearing state and generating a new sessionId. */
   const startNewChat = () => {
@@ -118,7 +118,6 @@ export function ChatInterface() {
           setSessionId(activeSessionId);
         }
 
-        // Save user message.
         await saveMessage({
           sessionId: activeSessionId,
           role: "user",
@@ -127,7 +126,6 @@ export function ChatInterface() {
 
         let content = json.data.response;
 
-        // Detect token expiry in the agent's response.
         const tokenExpired = /token.*(expired|invalid)|authentication credentials|not.*authorized|session.*expired/i.test(content);
         if (tokenExpired) {
           content += "\n\n---\nYour connection token may have expired. [Click here to reconnect your Google account](/api/connect?connection=google-oauth2).";
@@ -143,7 +141,6 @@ export function ChatInterface() {
 
         setMessages((prev) => [...prev, assistantMessage]);
 
-        // Save assistant message.
         await saveMessage({
           sessionId: activeSessionId,
           role: "assistant",
@@ -166,18 +163,15 @@ export function ChatInterface() {
           content: `Error: ${json.error || "Something went wrong. Please try again."}`,
           timestamp: new Date(),
         };
-
         setMessages((prev) => [...prev, errorMessage]);
       }
     } catch {
       const errorMessage: ChatMessage = {
         id: `msg_${Date.now()}_error`,
         role: "assistant",
-        content:
-          "Failed to reach the agent. Please check your connection and try again.",
+        content: "Failed to reach the agent. Please check your connection and try again.",
         timestamp: new Date(),
       };
-
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -187,126 +181,147 @@ export function ChatInterface() {
   if (!loaded) {
     return (
       <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        Loading conversation...
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <span className="text-sm">Loading conversation...</span>
       </div>
     );
   }
 
   return (
     <div className="flex h-full flex-col">
-      {/* New Chat button - shown when there are messages */}
-      {messages.length > 0 && (
-        <div className="flex justify-end border-b border-[var(--border)] px-4 py-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={startNewChat} disabled={isLoading}>
+      {/* Header */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-6">
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-semibold">Agent Chat</h1>
+          <span className="text-xs text-[var(--muted-foreground)]">
+            All actions are proxied, logged, and policy-controlled
+          </span>
+        </div>
+        {messages.length > 0 && (
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-[var(--muted-foreground)]" onClick={startNewChat} disabled={isLoading}>
             <Plus className="h-3.5 w-3.5" />
             New Chat
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center text-[var(--muted-foreground)]">
-            <Bot className="mb-4 h-12 w-12" />
-            <h3 className="mb-2 text-lg font-semibold text-[var(--foreground)]">
+      <div className="flex-1 overflow-y-auto">
+        {messages.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center px-4">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary)]/10">
+              <Sparkles className="h-6 w-6 text-[var(--primary)]" />
+            </div>
+            <h3 className="mb-1 text-base font-semibold">
               AgenLens Supervisor
             </h3>
-            <p className="mb-4 max-w-md text-center text-sm">
-              I can help you manage your work across Google Calendar, Gmail,
-              GitHub, Slack, and Google Drive. All actions are proxied, logged,
-              and policy-controlled.
+            <p className="mb-8 max-w-sm text-center text-[13px] leading-relaxed text-[var(--muted-foreground)]">
+              I can help you manage your work across Calendar, Gmail,
+              GitHub, Slack, and Drive. All actions are proxied and policy-controlled.
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
+            <div className="grid w-full max-w-lg grid-cols-2 gap-2.5">
               {[
-                "Prep me for my next meeting",
-                "Summarize this week on GitHub",
-                "Find recent emails from my team",
-                "Search Slack for project updates",
+                { text: "Prep me for my next meeting", icon: "calendar" },
+                { text: "Summarize this week on GitHub", icon: "github" },
+                { text: "Find recent emails from my team", icon: "email" },
+                { text: "Search Slack for project updates", icon: "slack" },
               ].map((suggestion) => (
                 <button
-                  key={suggestion}
-                  onClick={() => setInput(suggestion)}
-                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs transition-colors hover:bg-[var(--accent)]"
+                  key={suggestion.text}
+                  onClick={() => {
+                    setInput(suggestion.text);
+                    inputRef.current?.focus();
+                  }}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left text-[13px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--border)]/80 hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
                 >
-                  {suggestion}
+                  {suggestion.text}
                 </button>
               ))}
             </div>
           </div>
-        )}
+        ) : (
+          <div className="mx-auto max-w-3xl px-4 py-6">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`mb-5 flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {message.role === "assistant" && (
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10">
+                    <Bot className="h-3.5 w-3.5 text-[var(--primary)]" />
+                  </div>
+                )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`mb-4 flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            {message.role === "assistant" && (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]">
-                <Bot className="h-4 w-4 text-white" />
-              </div>
-            )}
-
-            <Card
-              className={`max-w-[70%] px-4 py-3 ${
-                message.role === "user"
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--secondary)]"
-              }`}
-            >
-              <MessageContent text={message.content} />
-              {message.requestId && (
-                <a
-                  href={`/dashboard/activity/${message.requestId}`}
-                  className="mt-2 block text-xs text-[var(--muted-foreground)] hover:underline"
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                    message.role === "user"
+                      ? "rounded-br-md bg-[var(--primary)] text-white"
+                      : "rounded-bl-md bg-[var(--secondary)]"
+                  }`}
                 >
-                  View agent activity for this request
-                </a>
-              )}
-            </Card>
-
-            {message.role === "user" && (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--secondary)]">
-                <User className="h-4 w-4" />
-              </div>
-            )}
-          </div>
-        ))}
-
-        {isLoading && (
-          <>
-            <ApprovalPrompt mode="inline" />
-            <div className="mb-4 flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]">
-                <Bot className="h-4 w-4 text-white" />
-              </div>
-              <Card className="bg-[var(--secondary)] px-4 py-3">
-                <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Orchestrating sub-agents...
+                  <MessageContent text={message.content} isUser={message.role === "user"} />
+                  {message.requestId && (
+                    <a
+                      href={`/dashboard/activity/${message.requestId}`}
+                      className="mt-1.5 block text-[11px] text-[var(--muted-foreground)] hover:underline"
+                    >
+                      View agent activity
+                    </a>
+                  )}
                 </div>
-              </Card>
-            </div>
-          </>
-        )}
 
-        <div ref={messagesEndRef} />
+                {message.role === "user" && (
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--secondary)]">
+                    <User className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isLoading && (
+              <>
+                <ApprovalPrompt mode="inline" />
+                <div className="mb-5 flex gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10">
+                    <Bot className="h-3.5 w-3.5 text-[var(--primary)]" />
+                  </div>
+                  <div className="rounded-2xl rounded-bl-md bg-[var(--secondary)] px-4 py-2.5">
+                    <div className="flex items-center gap-2 text-[13px] text-[var(--muted-foreground)]">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Orchestrating sub-agents...
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
-      {/* Input area */}
-      <div className="border-t border-[var(--border)] p-4">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      {/* Input area - pill style */}
+      <div className="shrink-0 px-4 pb-4 pt-2">
+        <form
+          onSubmit={handleSubmit}
+          className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-2 transition-colors focus-within:border-[var(--primary)]/50"
+        >
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask the supervisor agent..."
             disabled={isLoading}
-            className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-4 py-2 text-sm text-[var(--foreground)] placeholder-[var(--muted-foreground)] outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
+            className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder-[var(--muted-foreground)] outline-none"
           />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            <Send className="h-4 w-4" />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={isLoading || !input.trim()}
+            className="h-8 w-8 shrink-0 rounded-xl"
+          >
+            <Send className="h-3.5 w-3.5" />
           </Button>
         </form>
       </div>
@@ -315,24 +330,24 @@ export function ChatInterface() {
 }
 
 /** Renders message text with full markdown formatting. */
-function MessageContent({ text }: { text: string }) {
+function MessageContent({ text, isUser }: { text: string; isUser?: boolean }) {
   return (
-    <div className="prose prose-sm prose-invert max-w-none text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+    <div className={`prose prose-sm max-w-none text-[13px] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${isUser ? "prose-invert" : "prose-invert"}`}>
       <ReactMarkdown
         components={{
-          h1: ({ children }) => <h1 className="mb-2 mt-3 text-lg font-bold">{children}</h1>,
-          h2: ({ children }) => <h2 className="mb-2 mt-3 text-base font-bold">{children}</h2>,
-          h3: ({ children }) => <h3 className="mb-1 mt-2 text-sm font-semibold">{children}</h3>,
+          h1: ({ children }) => <h1 className="mb-2 mt-3 text-base font-bold">{children}</h1>,
+          h2: ({ children }) => <h2 className="mb-2 mt-3 text-sm font-bold">{children}</h2>,
+          h3: ({ children }) => <h3 className="mb-1 mt-2 text-[13px] font-semibold">{children}</h3>,
           p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
-          strong: ({ children }) => <strong className="font-semibold text-[var(--foreground)]">{children}</strong>,
+          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
           em: ({ children }) => <em className="italic text-[var(--muted-foreground)]">{children}</em>,
           a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--primary)] underline hover:opacity-80">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--primary)] underline decoration-[var(--primary)]/30 hover:decoration-[var(--primary)]">
               {children}
             </a>
           ),
-          ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>,
+          ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-0.5">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-0.5">{children}</ol>,
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
           code: ({ children, className }) => {
             const isBlock = className?.includes("language-");
@@ -344,14 +359,14 @@ function MessageContent({ text }: { text: string }) {
               );
             }
             return (
-              <code className="rounded bg-[var(--background)] px-1.5 py-0.5 text-xs font-mono">
+              <code className="rounded-md bg-[var(--background)]/50 px-1.5 py-0.5 text-xs font-mono">
                 {children}
               </code>
             );
           },
           hr: () => <hr className="my-3 border-[var(--border)]" />,
           blockquote: ({ children }) => (
-            <blockquote className="my-2 border-l-2 border-[var(--primary)] pl-3 text-[var(--muted-foreground)]">
+            <blockquote className="my-2 border-l-2 border-[var(--primary)]/30 pl-3 text-[var(--muted-foreground)]">
               {children}
             </blockquote>
           ),

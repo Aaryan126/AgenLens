@@ -9,48 +9,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Calendar,
-  Mail,
-  Github,
-  MessageSquare,
-  HardDrive,
-  Bot,
-  ShieldAlert,
-  ShieldCheck,
-  Clock,
-} from "lucide-react";
+import { ShieldAlert, ShieldCheck, Clock, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/utils";
+import { agentIcons, agentColors, agentLabel } from "@/lib/agent-ui";
 import type { AgentActivity, AgentType } from "@/lib/types";
 
-/** Maps agent types to their icon components. */
-const agentIcons: Record<AgentType, React.ElementType> = {
-  supervisor: Bot,
-  calendar: Calendar,
-  email: Mail,
-  github: Github,
-  slack: MessageSquare,
-  drive: HardDrive,
-};
-
-/** Maps agent types to their CSS color variables. */
-const agentColors: Record<AgentType, string> = {
-  supervisor: "text-indigo-400",
-  calendar: "text-amber-400",
-  email: "text-red-400",
-  github: "text-purple-400",
-  slack: "text-green-400",
-  drive: "text-blue-400",
-};
-
 interface ActivityFeedProps {
-  /** Initial activities to display (from server). */
   initialActivities?: AgentActivity[];
-  /** Maximum number of items to display. */
   maxItems?: number;
-  /** Filter by agent type. */
   agentFilter?: AgentType;
 }
 
@@ -59,8 +27,7 @@ export function ActivityFeed({
   maxItems = 50,
   agentFilter,
 }: ActivityFeedProps) {
-  const [activities, setActivities] =
-    useState<AgentActivity[]>(initialActivities);
+  const [activities, setActivities] = useState<AgentActivity[]>(initialActivities);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -84,34 +51,32 @@ export function ActivityFeed({
 
     fetchActivities();
     const interval = setInterval(fetchActivities, 3000);
-
     return () => clearInterval(interval);
   }, [maxItems, agentFilter]);
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-[var(--muted-foreground)]">
-        <ShieldAlert className="mb-3 h-8 w-8 text-red-400" />
-        <p className="text-sm">Failed to load activity</p>
-        <p className="text-xs">Check your connection or sign in again</p>
+      <div className="flex flex-col items-center justify-center py-10 text-[var(--muted-foreground)]">
+        <ShieldAlert className="mb-2 h-6 w-6 text-red-400" />
+        <p className="text-xs">Failed to load activity</p>
       </div>
     );
   }
 
   if (activities.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-[var(--muted-foreground)]">
-        <Bot className="mb-3 h-8 w-8" />
-        <p className="text-sm">No agent activity yet</p>
-        <p className="text-xs">
-          Start a conversation in the chat to see agent actions here
+      <div className="flex flex-col items-center justify-center py-10 text-[var(--muted-foreground)]">
+        <Bot className="mb-2 h-6 w-6" />
+        <p className="text-xs">No agent activity yet</p>
+        <p className="mt-0.5 text-[11px]">
+          Start a conversation in the chat to see actions here
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {activities.map((activity) => {
         const agentType = activity.agentType as AgentType;
         const Icon = agentIcons[agentType] || Bot;
@@ -121,41 +86,32 @@ export function ActivityFeed({
           <div
             key={activity.id}
             className={cn(
-              "flex items-start gap-3 rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-[var(--border)] hover:bg-[var(--accent)]",
-              activity.policyResult === "blocked" &&
-                "border-red-500/20 bg-red-500/5"
+              "flex items-start gap-3 rounded-lg border border-transparent px-3 py-2 transition-colors hover:bg-[var(--accent)]",
+              activity.policyResult === "blocked" && "border-red-500/10 bg-red-500/5"
             )}
           >
-            {/* Agent icon */}
-            <div
-              className={cn(
-                "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--secondary)]",
-                colorClass
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
+            <div className={cn("mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--secondary)]", colorClass)}>
+              <Icon className="h-3 w-3" />
             </div>
 
-            {/* Action details */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className={cn("text-xs font-medium", colorClass)}>
-                  {agentType.charAt(0).toUpperCase() + agentType.slice(1)} Agent
+                <span className={cn("text-[11px] font-medium", colorClass)}>
+                  {agentLabel(agentType)} Agent
                 </span>
-                <span className="text-xs text-[var(--muted-foreground)]">
+                <span className="text-[11px] text-[var(--muted-foreground)]">
                   {activity.targetService}
                 </span>
               </div>
-              <p className="mt-0.5 text-sm text-[var(--foreground)]">
+              <p className="mt-0.5 text-[13px] text-[var(--foreground)]">
                 {activity.action}
               </p>
             </div>
 
-            {/* Status and time */}
             <div className="flex shrink-0 flex-col items-end gap-1">
               <PolicyBadge result={activity.policyResult} />
-              <span className="flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
-                <Clock className="h-3 w-3" />
+              <span className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
+                <Clock className="h-2.5 w-2.5" />
                 {timeAgo(new Date(activity.createdAt))}
               </span>
             </div>
@@ -172,21 +128,21 @@ function PolicyBadge({ result }: { result: string }) {
     case "allowed":
       return (
         <Badge variant="success" className="gap-1">
-          <ShieldCheck className="h-3 w-3" />
+          <ShieldCheck className="h-2.5 w-2.5" />
           Allowed
         </Badge>
       );
     case "blocked":
       return (
         <Badge variant="destructive" className="gap-1">
-          <ShieldAlert className="h-3 w-3" />
+          <ShieldAlert className="h-2.5 w-2.5" />
           Blocked
         </Badge>
       );
     case "step_up_required":
       return (
         <Badge variant="warning" className="gap-1">
-          <ShieldAlert className="h-3 w-3" />
+          <ShieldAlert className="h-2.5 w-2.5" />
           Step-Up
         </Badge>
       );

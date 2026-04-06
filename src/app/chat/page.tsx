@@ -19,13 +19,7 @@ export default async function ChatPage() {
   return (
     <div className="flex h-screen">
       <Sidebar />
-      <main className="ml-64 flex flex-1 flex-col">
-        <div className="flex h-16 items-center border-b border-[var(--border)] px-6">
-          <h1 className="text-lg font-semibold">Agent Chat</h1>
-          <span className="ml-3 text-sm text-[var(--muted-foreground)]">
-            All actions are proxied, logged, and policy-controlled
-          </span>
-        </div>
+      <main className="ml-60 flex flex-1 flex-col">
         <ChatInterface />
       </main>
     </div>

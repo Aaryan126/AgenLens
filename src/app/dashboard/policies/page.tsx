@@ -52,7 +52,7 @@ export default function PoliciesPage() {
         setPolicies(json.data || []);
       }
     } catch {
-      // Handle fetch error silently, policies will show empty state.
+      // Handle fetch error silently.
     }
   };
 
@@ -101,16 +101,16 @@ export default function PoliciesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Policy Rules</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">
+          <h1 className="text-lg font-semibold">Policy Rules</h1>
+          <p className="text-xs text-[var(--muted-foreground)]">
             Define per-agent rules enforced by the proxy before every API call
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(!showCreateForm)} className="gap-2">
-          <Plus className="h-4 w-4" />
+        <Button onClick={() => setShowCreateForm(!showCreateForm)} size="sm" className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" />
           Create Policy
         </Button>
       </div>
@@ -126,42 +126,39 @@ export default function PoliciesPage() {
       {/* Policy list */}
       {policies.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Shield className="mb-3 h-8 w-8 text-[var(--muted-foreground)]" />
-            <p className="text-sm text-[var(--muted-foreground)]">
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <Shield className="mb-2 h-6 w-6 text-[var(--muted-foreground)]" />
+            <p className="text-xs text-[var(--muted-foreground)]">
               No policies defined yet. Create one to constrain agent behavior.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {policies.map((policy) => (
             <Card key={policy.id}>
               <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => togglePolicy(policy.id, policy.enabled)}
                     className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                   >
                     {policy.enabled ? (
-                      <ToggleRight className="h-6 w-6 text-green-400" />
+                      <ToggleRight className="h-5 w-5 text-green-400" />
                     ) : (
-                      <ToggleLeft className="h-6 w-6" />
+                      <ToggleLeft className="h-5 w-5" />
                     )}
                   </button>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
-                        {policy.agentType.charAt(0).toUpperCase() +
-                          policy.agentType.slice(1)}{" "}
-                        Agent
+                      <span className="text-[13px] font-medium">
+                        {policy.agentType.charAt(0).toUpperCase() + policy.agentType.slice(1)} Agent
                       </span>
                       <Badge variant="outline">
-                        {policyTypeLabels[policy.policyType] ||
-                          policy.policyType}
+                        {policyTypeLabels[policy.policyType] || policy.policyType}
                       </Badge>
                     </div>
-                    <p className="text-xs text-[var(--muted-foreground)]">
+                    <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
                       {JSON.stringify(policy.rules)}
                     </p>
                   </div>
@@ -169,9 +166,10 @@ export default function PoliciesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-8 w-8"
                   onClick={() => deletePolicy(policy.id)}
                 >
-                  <Trash2 className="h-4 w-4 text-red-400" />
+                  <Trash2 className="h-3.5 w-3.5 text-red-400" />
                 </Button>
               </CardContent>
             </Card>
@@ -181,17 +179,18 @@ export default function PoliciesPage() {
 
       {/* Policy type reference */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold">Policy Types</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <h2 className="mb-3 text-sm font-semibold">Policy Types</h2>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {Object.entries(policyTypeLabels).map(([type, label]) => (
-            <Card key={type}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{label}</CardTitle>
-                <CardDescription>
-                  {policyTypeDescriptions[type]}
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <div
+              key={type}
+              className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4"
+            >
+              <p className="text-xs font-medium">{label}</p>
+              <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
+                {policyTypeDescriptions[type]}
+              </p>
+            </div>
           ))}
         </div>
       </div>
@@ -282,13 +281,13 @@ function CreatePolicyForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Create New Policy</CardTitle>
+        <CardTitle>Create New Policy</CardTitle>
         <CardDescription>Use a preset or configure manually</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Presets */}
         <div>
-          <label className="mb-2 block text-xs font-medium text-[var(--muted-foreground)]">
+          <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
             Quick Presets
           </label>
           <div className="grid gap-2 md:grid-cols-2">
@@ -296,10 +295,10 @@ function CreatePolicyForm({
               <button
                 key={preset.label}
                 onClick={() => applyPreset(preset)}
-                className="rounded-lg border border-[var(--border)] p-3 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--accent)]"
+                className="rounded-lg border border-[var(--border)] p-3 text-left transition-colors hover:border-[var(--primary)]/30 hover:bg-[var(--accent)]"
               >
                 <p className="text-xs font-medium">{preset.label}</p>
-                <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
                   {preset.description}
                 </p>
               </button>
@@ -309,13 +308,13 @@ function CreatePolicyForm({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
               Agent Type
             </label>
             <select
               value={agentType}
               onChange={(e) => setAgentType(e.target.value)}
-              className="w-full rounded-md border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]/50"
             >
               <option value="calendar">Calendar</option>
               <option value="email">Email</option>
@@ -325,13 +324,13 @@ function CreatePolicyForm({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
               Policy Type
             </label>
             <select
               value={policyType}
               onChange={(e) => setPolicyType(e.target.value)}
-              className="w-full rounded-md border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]/50"
             >
               <option value="blocklist">Blocklist</option>
               <option value="allowlist">Allowlist</option>
@@ -342,7 +341,7 @@ function CreatePolicyForm({
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
+          <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
             Rules (JSON)
           </label>
           <textarea
@@ -352,19 +351,17 @@ function CreatePolicyForm({
               setJsonError(false);
             }}
             rows={4}
-            className={`w-full rounded-md border bg-[var(--secondary)] px-3 py-2 font-mono text-sm ${
+            className={`w-full rounded-lg border bg-[var(--secondary)] px-3 py-2 font-mono text-sm outline-none focus:border-[var(--primary)]/50 ${
               jsonError ? "border-red-500" : "border-[var(--border)]"
             }`}
           />
           {jsonError && (
-            <p className="mt-1 text-xs text-red-400">Invalid JSON. Please check the format.</p>
+            <p className="mt-1 text-[11px] text-red-400">Invalid JSON. Please check the format.</p>
           )}
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSubmit}>Create Policy</Button>
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
+          <Button size="sm" onClick={handleSubmit}>Create Policy</Button>
+          <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
         </div>
       </CardContent>
     </Card>

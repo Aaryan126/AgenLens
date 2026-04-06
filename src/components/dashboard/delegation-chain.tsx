@@ -10,42 +10,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Calendar,
-  Mail,
-  Github,
-  MessageSquare,
-  HardDrive,
-  Bot,
-  ShieldCheck,
-  ShieldAlert,
-  ChevronDown,
-  ArrowDown,
-  ExternalLink,
-} from "lucide-react";
+import { ChevronDown, ArrowDown, ExternalLink, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/utils";
+import { agentIcons, agentColors } from "@/lib/agent-ui";
 import type { AgentActivity, AgentType } from "@/lib/types";
-
-const agentIcons: Record<AgentType, React.ElementType> = {
-  supervisor: Bot,
-  calendar: Calendar,
-  email: Mail,
-  github: Github,
-  slack: MessageSquare,
-  drive: HardDrive,
-};
-
-const agentColors: Record<AgentType, string> = {
-  supervisor: "text-indigo-400",
-  calendar: "text-amber-400",
-  email: "text-red-400",
-  github: "text-purple-400",
-  slack: "text-green-400",
-  drive: "text-blue-400",
-};
 
 interface RecentRequest {
   requestId: string;
@@ -61,7 +31,6 @@ export function DelegationChain() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch recent request IDs.
   useEffect(() => {
     async function fetchRecent() {
       try {
@@ -70,7 +39,6 @@ export function DelegationChain() {
         const json = await res.json();
         const allActivities: AgentActivity[] = json.data || [];
 
-        // Group by requestId.
         const grouped = new Map<string, { agents: Set<string>; count: number; latestAt: string }>();
         for (const a of allActivities) {
           const existing = grouped.get(a.requestId);
@@ -81,7 +49,7 @@ export function DelegationChain() {
             grouped.set(a.requestId, {
               agents: new Set([a.agentType]),
               count: 1,
-              latestAt: a.createdAt,
+              latestAt: String(a.createdAt),
             });
           }
         }
@@ -111,7 +79,6 @@ export function DelegationChain() {
     return () => clearInterval(interval);
   }, [selectedRequestId]);
 
-  // Fetch activities for the selected request.
   useEffect(() => {
     if (!selectedRequestId) return;
 
@@ -131,7 +98,7 @@ export function DelegationChain() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8 text-sm text-[var(--muted-foreground)]">
+      <div className="flex items-center justify-center py-6 text-xs text-[var(--muted-foreground)]">
         Loading...
       </div>
     );
@@ -139,8 +106,8 @@ export function DelegationChain() {
 
   if (requests.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-[var(--muted-foreground)]">
-        <p className="text-sm">Send a message in Chat to see the delegation chain</p>
+      <div className="flex flex-col items-center justify-center py-6 text-[var(--muted-foreground)]">
+        <p className="text-xs">Send a message in Chat to see the delegation chain</p>
       </div>
     );
   }
@@ -153,12 +120,12 @@ export function DelegationChain() {
       <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="flex w-full items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-xs"
+          className="flex w-full items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-[11px]"
         >
           <span className="truncate font-mono">
             {selected ? selected.requestId : "Select request"}
           </span>
-          <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", showDropdown && "rotate-180")} />
+          <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", showDropdown && "rotate-180")} />
         </button>
 
         {showDropdown && (
@@ -171,13 +138,13 @@ export function DelegationChain() {
                   setShowDropdown(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-[var(--accent)]",
+                  "flex w-full items-center justify-between px-3 py-2 text-[11px] hover:bg-[var(--accent)]",
                   req.requestId === selectedRequestId && "bg-[var(--accent)]"
                 )}
               >
                 <span className="flex items-center gap-2">
                   <span className="truncate font-mono">{req.requestId.substring(0, 20)}...</span>
-                  <Badge variant="secondary" className="text-[10px]">{req.count} actions</Badge>
+                  <Badge variant="secondary">{req.count} actions</Badge>
                 </span>
                 <span className="text-[var(--muted-foreground)]">{timeAgo(new Date(req.latestAt))}</span>
               </button>
@@ -195,18 +162,18 @@ export function DelegationChain() {
 
           return (
             <div key={activity.id}>
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--accent)]">
-                <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded", colorClass)}>
-                  <Icon className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-[var(--accent)]">
+                <div className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded", colorClass)}>
+                  <Icon className="h-3 w-3" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs">{activity.action}</p>
+                  <p className="truncate text-[11px]">{activity.action}</p>
                 </div>
                 <PolicyDot result={activity.policyResult} />
               </div>
               {index < activities.length - 1 && (
                 <div className="flex justify-center">
-                  <ArrowDown className="h-3 w-3 text-[var(--muted-foreground)]" />
+                  <ArrowDown className="h-2.5 w-2.5 text-[var(--muted-foreground)]" />
                 </div>
               )}
             </div>
@@ -218,9 +185,9 @@ export function DelegationChain() {
       {selectedRequestId && activities.length > 0 && (
         <Link
           href={`/dashboard/activity/${selectedRequestId}`}
-          className="flex items-center justify-center gap-1 text-xs text-[var(--primary)] hover:underline"
+          className="flex items-center justify-center gap-1 text-[11px] text-[var(--primary)] hover:underline"
         >
-          View full details <ExternalLink className="h-3 w-3" />
+          View full details <ExternalLink className="h-2.5 w-2.5" />
         </Link>
       )}
     </div>
@@ -236,5 +203,5 @@ function PolicyDot({ result }: { result: string }) {
         ? "bg-red-500"
         : "bg-yellow-500";
 
-  return <div className={cn("h-2 w-2 shrink-0 rounded-full", color)} title={result} />;
+  return <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color)} title={result} />;
 }

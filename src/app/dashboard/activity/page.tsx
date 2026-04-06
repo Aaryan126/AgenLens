@@ -6,12 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import type { AgentType } from "@/lib/types";
@@ -26,27 +21,26 @@ const agentFilters: Array<{ label: string; value: AgentType | undefined }> = [
 ];
 
 export default function ActivityLogPage() {
-  const [activeFilter, setActiveFilter] = useState<AgentType | undefined>(
-    undefined
-  );
+  const [activeFilter, setActiveFilter] = useState<AgentType | undefined>(undefined);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Activity Log</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
+        <h1 className="text-lg font-semibold">Activity Log</h1>
+        <p className="text-xs text-[var(--muted-foreground)]">
           Full history of all agent actions, filterable by agent type
         </p>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {agentFilters.map((filter) => (
           <Button
             key={filter.label}
             variant={activeFilter === filter.value ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveFilter(filter.value)}
+            className="text-xs"
           >
             {filter.label}
           </Button>
