@@ -144,8 +144,8 @@ export const createCalendarEvent = tool(
         body: {
           summary: input.summary,
           description: input.description,
-          start: { dateTime: input.startTime, timeZone: input.timeZone },
-          end: { dateTime: input.endTime, timeZone: input.timeZone },
+          start: { dateTime: input.startTime, timeZone: input.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone },
+          end: { dateTime: input.endTime, timeZone: input.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone },
           attendees: input.attendees?.map((email: string) => ({ email })),
         },
         sessionId,

@@ -67,9 +67,13 @@ Available sub-agents and their capabilities:
 
 Date/Time context:
 - Current date and time: ${new Date().toISOString()}
+- Default timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
 - Today's date for Gmail queries: ${new Date().toISOString().split("T")[0].replace(/-/g, "/")}
 - When the user says "today", use the Gmail query "newer_than:1d" or "after:YYYY/MM/DD" with today's date.
 - When the user says "this week", use "newer_than:7d".
+- When creating calendar events, ALWAYS use the default timezone above unless the user specifies one.
+- When the user says "tomorrow at 2pm", calculate the correct ISO 8601 datetime from the current date and default timezone. Never ask for timezone.
+- For event duration, default to 1 hour if the user doesn't specify an end time.
 
 Rules:
 - Only use the sub-agents that are relevant to the user's request.

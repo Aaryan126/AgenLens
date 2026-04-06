@@ -199,7 +199,53 @@ export default function PoliciesPage() {
   );
 }
 
-/** Simple form for creating a new policy. */
+/** Preset policy templates for quick creation. */
+const presets = [
+  {
+    label: "Block Email Agent from sending",
+    agentType: "email",
+    policyType: "blocklist",
+    rules: { methods: ["POST"], endpoints: ["/send"] },
+    description: "Prevents the Email Agent from sending any emails, even with approval.",
+  },
+  {
+    label: "Block Email Agent from deleting",
+    agentType: "email",
+    policyType: "blocklist",
+    rules: { methods: ["DELETE"] },
+    description: "Prevents the Email Agent from deleting any emails.",
+  },
+  {
+    label: "Calendar Agent: read only",
+    agentType: "calendar",
+    policyType: "allowlist",
+    rules: { methods: ["GET"] },
+    description: "Calendar Agent can only read events, never create or modify.",
+  },
+  {
+    label: "GitHub Agent: rate limit 10 req/hour",
+    agentType: "github",
+    policyType: "rate_limit",
+    rules: { maxRequests: 10, windowMinutes: 60 },
+    description: "Limits the GitHub Agent to 10 API calls per hour.",
+  },
+  {
+    label: "No agent actions outside business hours",
+    agentType: "email",
+    policyType: "time_restriction",
+    rules: { allowedHoursStart: 9, allowedHoursEnd: 17 },
+    description: "Email Agent can only operate between 9 AM and 5 PM.",
+  },
+  {
+    label: "Drive Agent: block specific folders",
+    agentType: "drive",
+    policyType: "resource_restriction",
+    rules: { blockedResources: ["confidential", "private"] },
+    description: "Blocks Drive Agent from accessing files with 'confidential' or 'private' in the path.",
+  },
+];
+
+/** Form for creating a new policy, with presets and manual JSON editing. */
 function CreatePolicyForm({
   onSubmit,
   onCancel,
@@ -213,14 +259,23 @@ function CreatePolicyForm({
 }) {
   const [agentType, setAgentType] = useState("email");
   const [policyType, setPolicyType] = useState("blocklist");
-  const [rulesJson, setRulesJson] = useState('{"methods": ["DELETE"]}');
+  const [rulesJson, setRulesJson] = useState('{"methods": ["POST"], "endpoints": ["/send"]}');
+  const [jsonError, setJsonError] = useState(false);
+
+  const applyPreset = (preset: typeof presets[number]) => {
+    setAgentType(preset.agentType);
+    setPolicyType(preset.policyType);
+    setRulesJson(JSON.stringify(preset.rules, null, 2));
+    setJsonError(false);
+  };
 
   const handleSubmit = () => {
     try {
       const rules = JSON.parse(rulesJson);
+      setJsonError(false);
       onSubmit({ agentType, policyType, rules });
     } catch {
-      // Invalid JSON, do nothing.
+      setJsonError(true);
     }
   };
 
@@ -228,8 +283,30 @@ function CreatePolicyForm({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Create New Policy</CardTitle>
+        <CardDescription>Use a preset or configure manually</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Presets */}
+        <div>
+          <label className="mb-2 block text-xs font-medium text-[var(--muted-foreground)]">
+            Quick Presets
+          </label>
+          <div className="grid gap-2 md:grid-cols-2">
+            {presets.map((preset) => (
+              <button
+                key={preset.label}
+                onClick={() => applyPreset(preset)}
+                className="rounded-lg border border-[var(--border)] p-3 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--accent)]"
+              >
+                <p className="text-xs font-medium">{preset.label}</p>
+                <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                  {preset.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
@@ -270,10 +347,18 @@ function CreatePolicyForm({
           </label>
           <textarea
             value={rulesJson}
-            onChange={(e) => setRulesJson(e.target.value)}
-            rows={3}
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 font-mono text-sm"
+            onChange={(e) => {
+              setRulesJson(e.target.value);
+              setJsonError(false);
+            }}
+            rows={4}
+            className={`w-full rounded-md border bg-[var(--secondary)] px-3 py-2 font-mono text-sm ${
+              jsonError ? "border-red-500" : "border-[var(--border)]"
+            }`}
           />
+          {jsonError && (
+            <p className="mt-1 text-xs text-red-400">Invalid JSON. Please check the format.</p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button onClick={handleSubmit}>Create Policy</Button>
