@@ -10,7 +10,6 @@ import {
   Calendar,
   Mail,
   Github,
-  MessageSquare,
   HardDrive,
   Bot,
 } from "lucide-react";
@@ -22,7 +21,6 @@ export const agentIcons: Record<AgentType, React.ElementType> = {
   calendar: Calendar,
   email: Mail,
   github: Github,
-  slack: MessageSquare,
   drive: HardDrive,
 };
 
@@ -32,7 +30,6 @@ export const agentColors: Record<AgentType, string> = {
   calendar: "text-amber-400",
   email: "text-red-400",
   github: "text-purple-400",
-  slack: "text-green-400",
   drive: "text-blue-400",
 };
 
@@ -41,7 +38,6 @@ export const agentGradients: Record<Exclude<AgentType, "supervisor">, string> = 
   calendar: "from-amber-500/10 to-amber-600/5",
   email: "from-red-500/10 to-red-600/5",
   github: "from-purple-500/10 to-purple-600/5",
-  slack: "from-green-500/10 to-green-600/5",
   drive: "from-blue-500/10 to-blue-600/5",
 };
 

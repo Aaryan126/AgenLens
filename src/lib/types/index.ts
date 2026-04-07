@@ -11,7 +11,6 @@ export type AgentType =
   | "calendar"
   | "email"
   | "github"
-  | "slack"
   | "drive";
 
 /** Result of the proxy policy engine evaluating a request. */
@@ -193,14 +192,6 @@ export const AGENT_SCOPE_CONFIG: Record<
     displayName: "GitHub Agent",
     description: "Reads repos, issues, and pull requests",
     icon: "github",
-  },
-  slack: {
-    connection: "slack",
-    defaultScopes: ["channels:read", "search:read", "users:read"],
-    escalatableScopes: ["chat:write"],
-    displayName: "Slack Agent",
-    description: "Searches and reads Slack channels and messages",
-    icon: "message-square",
   },
   drive: {
     connection: "google-oauth2",

@@ -33,7 +33,7 @@ Google Calendar   Gmail        GitHub API     Google Drive
 
 ## Features
 
-- **5 specialized sub-agents** (Calendar, Email, GitHub, Slack, Drive) with 18 tools
+- **4 specialized sub-agents** (Calendar, Email, GitHub, Drive) with 15 tools
 - **API proxy layer** that intercepts every agent API call for logging and policy enforcement
 - **Policy engine** with 5 rule types: allowlist, blocklist, rate limit, time restriction, resource restriction
 - **In-app step-up approval** for sensitive actions (send email, create issue, post message)
@@ -94,7 +94,6 @@ AUTH0_CLIENT_SECRET=       # From Auth0 app settings
 # Auth0 connections
 AUTH0_GOOGLE_CONNECTION=google-oauth2
 AUTH0_GITHUB_CONNECTION=github
-AUTH0_SLACK_CONNECTION=slack
 
 # Database
 DATABASE_URL=postgresql://user@localhost:5432/agenlens

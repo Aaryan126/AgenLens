@@ -29,9 +29,6 @@ import {
   listRepositories,
   getPullRequest,
   listCommits,
-  searchSlackMessages,
-  listSlackChannels,
-  postSlackMessage,
   searchDriveFiles,
   getDriveFile,
 } from "@/lib/agents/tools";
@@ -48,7 +45,7 @@ const llm = new ChatVertexAI({
 
 /** Builds the system prompt with the current date/time. */
 function getSupervisorSystemPrompt(): string {
-  return `You are the AgenLens Supervisor Agent. You orchestrate specialized sub-agents to help users manage their work across Google Calendar, Gmail, GitHub, Slack, and Google Drive.
+  return `You are the AgenLens Supervisor Agent. You orchestrate specialized sub-agents to help users manage their work across Google Calendar, Gmail, GitHub, and Google Drive.
 
 Your role:
 1. Analyze the user's request and determine which sub-agents are needed.
@@ -67,7 +64,6 @@ Available sub-agents and their capabilities:
 - Calendar Agent: Read calendar events, check availability, create events (needs approval)
 - Email Agent: Search and read Gmail messages, send emails (needs approval)
 - GitHub Agent: List user repos, read repo details, list/read PRs, list issues, list commits, create issues (needs approval)
-- Slack Agent: Search messages, list channels, post messages (needs approval)
 - Drive Agent: Search and read file metadata from Google Drive
 
 Date/Time context:
@@ -106,10 +102,6 @@ const ALL_TOOLS = [
   listRepositories,
   getPullRequest,
   listCommits,
-  // Slack
-  searchSlackMessages,
-  listSlackChannels,
-  postSlackMessage,
   // Drive
   searchDriveFiles,
   getDriveFile,

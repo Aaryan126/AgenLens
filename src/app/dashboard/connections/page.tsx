@@ -1,7 +1,7 @@
 /**
  * Connected accounts management page.
  *
- * Shows which third-party accounts (Google, GitHub, Slack) are connected.
+ * Shows which third-party accounts (Google, GitHub) are connected.
  * Provides controls to connect new accounts or reconnect expired ones.
  */
 
@@ -33,13 +33,6 @@ const providers = [
     description: "Repos, Issues, Pull Requests",
     color: "text-purple-400",
     bg: "bg-purple-500/10",
-  },
-  {
-    name: "Slack",
-    connectionName: "slack",
-    description: "Channels, Messages, Search",
-    color: "text-green-400",
-    bg: "bg-green-500/10",
   },
 ];
 
@@ -108,7 +101,7 @@ export default function ConnectionsPage() {
       </div>
 
       {/* Provider cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {providers.map((provider) => {
           const status = statuses[provider.connectionName];
           const isConnected = !!status?.accessToken;

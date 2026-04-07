@@ -319,7 +319,6 @@ function CreatePolicyForm({
               <option value="calendar">Calendar</option>
               <option value="email">Email</option>
               <option value="github">GitHub</option>
-              <option value="slack">Slack</option>
               <option value="drive">Drive</option>
             </select>
           </div>

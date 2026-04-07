@@ -413,11 +413,6 @@ function buildApprovalDescription(request: ProxyRequest): string {
     return `${agent} Agent wants to create a GitHub issue: "${title}"`;
   }
 
-  if (url.includes("slack.com/api") && url.includes("chat.postMessage")) {
-    const channel = (request.body as Record<string, unknown>)?.channel || "a channel";
-    return `${agent} Agent wants to post a message to Slack channel: ${channel}`;
-  }
-
   if (url.includes("googleapis.com/drive") && method === "POST") {
     return `${agent} Agent wants to upload a file to Google Drive`;
   }
@@ -458,14 +453,6 @@ function buildActionDescription(
     if (url.includes("/commits")) return `Read commits`;
     if (url.includes("/repos") && method === "GET") return `Read repository data`;
     return `Accessed GitHub`;
-  }
-
-  if (url.includes("slack.com/api")) {
-    if (url.includes("conversations")) return `Read Slack channels`;
-    if (url.includes("chat.postMessage")) return `Posted a Slack message`;
-    if (url.includes("search")) return `Searched Slack messages`;
-    if (url.includes("users")) return `Looked up Slack users`;
-    return `Accessed Slack`;
   }
 
   if (url.includes("googleapis.com/drive")) {

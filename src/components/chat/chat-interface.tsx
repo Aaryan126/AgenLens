@@ -217,14 +217,14 @@ export function ChatInterface() {
             </h3>
             <p className="mb-8 max-w-sm text-center text-[13px] leading-relaxed text-[var(--muted-foreground)]">
               I can help you manage your work across Calendar, Gmail,
-              GitHub, Slack, and Drive. All actions are proxied and policy-controlled.
+              GitHub, and Drive. All actions are proxied and policy-controlled.
             </p>
             <div className="grid w-full max-w-lg grid-cols-2 gap-2.5">
               {[
                 { text: "Prep me for my next meeting", icon: "calendar" },
                 { text: "Summarize this week on GitHub", icon: "github" },
                 { text: "Find recent emails from my team", icon: "email" },
-                { text: "Search Slack for project updates", icon: "slack" },
+                { text: "Search my Drive for recent docs", icon: "drive" },
               ].map((suggestion) => (
                 <button
                   key={suggestion.text}

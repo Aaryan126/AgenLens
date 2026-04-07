@@ -65,27 +65,27 @@ User Request
 +------------------+
 |  Supervisor Agent |  (LangGraph orchestrator)
 +------------------+
-    |          |          |          |          |
-    v          v          v          v          v
-+--------+ +--------+ +--------+ +--------+ +--------+
-|Calendar| | Email  | | GitHub | | Slack  | | Drive  |
-| Agent  | | Agent  | | Agent  | | Agent  | | Agent  |
-+--------+ +--------+ +--------+ +--------+ +--------+
-    |          |          |          |          |
+    |          |          |          |
+    v          v          v          v
++--------+ +--------+ +--------+ +--------+
+|Calendar| | Email  | | GitHub | | Drive  |
+| Agent  | | Agent  | | Agent  | | Agent  |
++--------+ +--------+ +--------+ +--------+
+    |          |          |          |
     | (scoped tokens from Token Vault per agent)
-    |          |          |          |          |
-    v          v          v          v          v
+    |          |          |          |
+    v          v          v          v
 +------------------------------------------------------+
 |              AgenLens API Proxy Layer                 |
 |  - Logs every request (endpoint, method, payload)    |
 |  - Enforces runtime policies                         |
-|  - Triggers CIBA step-up when needed                 |
+|  - Triggers step-up approval when needed             |
 |  - Blocks unauthorized actions                       |
 +------------------------------------------------------+
-    |          |          |          |          |
-    v          v          v          v          v
-  Google     Google     GitHub    Slack     Google
- Calendar    Gmail       API       API      Drive
+    |          |          |          |
+    v          v          v          v
+  Google     Google     GitHub    Google
+ Calendar    Gmail       API      Drive
    API        API
 ```
 
@@ -130,7 +130,6 @@ User Request
 | Calendar Agent | Google | `google-oauth2` | `calendar.readonly`, `calendar.events` | Read events, check availability, create/modify events |
 | Email Agent | Google | `google-oauth2` | `gmail.readonly`, `gmail.send`, `gmail.modify` | Search emails, read threads, draft/send emails, manage labels |
 | GitHub Agent | GitHub | `github` | `repo`, `issues`, `pull_requests` | Read repos, list PRs/issues, create issues, review PRs, read code |
-| Slack Agent | Slack | `slack` | `channels:read`, `chat:write`, `search:read`, `users:read` | Search messages, read channels, post messages, find users |
 | Drive Agent | Google | `google-oauth2` | `drive.readonly`, `drive.file` | Search files, read documents, upload files, share files |
 
 **Key Behavior:**
@@ -145,16 +144,14 @@ User Request
 1. Calendar Agent reads the 2pm event (attendees, agenda, location)
 2. Email Agent searches recent threads with attendees
 3. GitHub Agent pulls PRs/issues from the linked project repo
-4. Slack Agent searches relevant channel history for context
-5. Drive Agent finds shared docs linked in the calendar event
-6. Supervisor compiles a meeting brief with all context
+4. Drive Agent finds shared docs linked in the calendar event
+5. Supervisor compiles a meeting brief with all context
 
 *"Summarize what happened this week on Project Atlas"*
 1. GitHub Agent lists merged PRs, open issues, recent commits
-2. Slack Agent searches #project-atlas channel for discussions
-3. Email Agent finds emails mentioning "Project Atlas"
-4. Calendar Agent lists meetings related to the project
-5. Supervisor synthesizes a weekly digest
+2. Email Agent finds emails mentioning "Project Atlas"
+3. Calendar Agent lists meetings related to the project
+4. Supervisor synthesizes a weekly digest
 
 *"Draft a response to Sarah's email about the API redesign and schedule a follow-up"*
 1. Email Agent finds and reads Sarah's email
@@ -169,7 +166,7 @@ User Request
 **What the Proxy Captures Per Request:**
 - Timestamp
 - Sub-agent identity (which agent made the call)
-- Target API (Google Calendar, Gmail, GitHub, Slack, Google Drive)
+- Target API (Google Calendar, Gmail, GitHub, Google Drive)
 - HTTP method and endpoint
 - Request payload summary (sanitized, no sensitive content stored)
 - Response status code
@@ -227,7 +224,7 @@ User Request
   - **Action allowlist:** "Calendar Agent can only read events, never create or delete"
   - **Action blocklist:** "Email Agent can never delete emails"
   - **Resource restrictions:** "GitHub Agent can only access repos in the 'myorg' organization"
-  - **Rate limits:** "Slack Agent can post at most 10 messages per hour"
+  - **Rate limits:** "GitHub Agent can make at most 10 API calls per hour"
   - **Time restrictions:** "No agent actions outside business hours"
   - **Data sensitivity rules:** "Never access emails with subject containing 'confidential'"
 - Policies are enforced by the proxy layer in real-time
@@ -256,7 +253,7 @@ User Request
 - Sub-agent requests an action outside its current scopes (e.g., Email Agent wants to send, but only has `gmail.readonly`)
 - Action matches a policy rule requiring approval (e.g., "always ask before creating calendar events")
 - Action involves data modification (create, update, delete) on any service
-- Action involves sending communications (emails, Slack messages)
+- Action involves sending communications (emails)
 - Action involves financial or sensitive data access
 
 **Flow:**
@@ -273,7 +270,7 @@ User Request
 
 **Description:** User-facing interface to manage which third-party accounts are connected and available to agents.
 
-- Connect/disconnect Google, GitHub, Slack accounts via Auth0 Connected Accounts flow
+- Connect/disconnect Google and GitHub accounts via Auth0 Connected Accounts flow
 - See which agents have access to which connections
 - Per-connection scope visibility
 - Revoke a connection (removes all agent access to that service)
@@ -315,7 +312,7 @@ User Request
 ## Auth0 Integration Points
 
 ### Token Vault Usage
-- **Connected Accounts:** Google (Calendar, Gmail, Drive), GitHub, Slack
+- **Connected Accounts:** Google (Calendar, Gmail, Drive), GitHub
 - **Token Exchange:** Each sub-agent exchanges Auth0 tokens for provider-specific tokens scoped to its needs
 - **Automatic Refresh:** Token Vault handles refresh token rotation transparently
 - **Per-Agent Scoping:** Different sub-agents request different scopes for the same connection
@@ -341,7 +338,7 @@ id: uuid
 user_id: string
 session_id: string
 request_id: string (groups all sub-agent actions for one user request)
-agent_type: enum (supervisor, calendar, email, github, slack, drive)
+agent_type: enum (supervisor, calendar, email, github, drive)
 action: string (human-readable description)
 target_service: string
 http_method: string

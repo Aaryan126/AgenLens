@@ -1,7 +1,7 @@
 /**
  * Connected accounts API route handler.
  *
- * Manages the user's connected third-party accounts (Google, GitHub, Slack).
+ * Manages the user's connected third-party accounts (Google, GitHub).
  * These connections are established via Auth0 Connected Accounts flow
  * and tracked in our database for dashboard visibility.
  */
@@ -42,7 +42,7 @@ export async function GET(): Promise<NextResponse> {
  * Records a new connected account after the Auth0 Connected Accounts flow.
  *
  * Body:
- * - provider: The service name (e.g., "Google", "GitHub", "Slack")
+ * - provider: The service name (e.g., "Google", "GitHub")
  * - connectionName: The Auth0 connection name (e.g., "google-oauth2")
  * - scopesGranted: Array of granted OAuth scopes
  */

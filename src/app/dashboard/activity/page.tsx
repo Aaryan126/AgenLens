@@ -16,7 +16,6 @@ const agentFilters: Array<{ label: string; value: AgentType | undefined }> = [
   { label: "Calendar", value: "calendar" },
   { label: "Email", value: "email" },
   { label: "GitHub", value: "github" },
-  { label: "Slack", value: "slack" },
   { label: "Drive", value: "drive" },
 ];
 

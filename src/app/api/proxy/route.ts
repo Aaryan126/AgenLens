@@ -83,6 +83,5 @@ function extractServiceName(url: string): string {
   if (url.includes("googleapis.com/gmail")) return "Gmail";
   if (url.includes("googleapis.com/drive")) return "Google Drive";
   if (url.includes("api.github.com")) return "GitHub";
-  if (url.includes("slack.com/api")) return "Slack";
   return new URL(url).hostname;
 }

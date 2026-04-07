@@ -35,7 +35,6 @@ const AGENT_CHART_COLORS: Record<string, string> = {
   calendar: "#f59e0b",
   email: "#ef4444",
   github: "#a855f7",
-  slack: "#22c55e",
   drive: "#3b82f6",
   supervisor: "#6366f1",
 };

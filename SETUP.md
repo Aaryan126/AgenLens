@@ -65,14 +65,6 @@ This document covers how to set up all the environment variables and external se
    - Default permissions (repo, user, read:org) are sufficient
    - Enable for your application
 
-### Connect Slack (optional, can add later)
-1. Create a Slack app at [api.slack.com](https://api.slack.com)
-2. Add OAuth redirect URL: `https://YOUR_TENANT.auth0.com/login/callback`
-3. Add scopes: `channels:read`, `chat:write`, `search:read`, `users:read`
-4. In Auth0 Dashboard > Authentication > Social > Slack:
-   - Paste Client ID and Client Secret
-   - Enable for your application
-
 ### CIBA - Step-Up Auth (optional, add later)
 - Requires Auth0 Guardian (push notifications) enabled
 - `AUTH0_CIBA_CLIENT_ID` / `AUTH0_CIBA_CLIENT_SECRET` can be same app or a separate M2M app
@@ -141,7 +133,6 @@ AUTH0_CLIENT_SECRET=<from Auth0 app settings>
 # Auth0 Token Vault connections
 AUTH0_GOOGLE_CONNECTION=google-oauth2
 AUTH0_GITHUB_CONNECTION=github
-AUTH0_SLACK_CONNECTION=slack
 
 # Auth0 CIBA (optional)
 AUTH0_CIBA_CLIENT_ID=
@@ -185,7 +176,6 @@ WEBSOCKET_PORT=3001
 | Auth0 | Free (free tier, 25k MAUs) |
 | Google Cloud OAuth | Free (just credentials) |
 | GitHub OAuth | Free |
-| Slack OAuth | Free |
 | PostgreSQL | Free (local) |
 | Redis | Free (local) |
 | Gemini API | Free tier available |

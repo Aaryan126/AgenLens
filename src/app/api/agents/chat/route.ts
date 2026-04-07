@@ -51,7 +51,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Fetch provider tokens. Try Token Vault first, fall back to Management API.
     const providerTokens: Record<string, string> = {};
-    const connections = ["google-oauth2", "github", "slack"];
+    const connections = ["google-oauth2", "github"];
 
     // Attempt 1: Token Vault (getAccessTokenForConnection).
     // This method uses the session's refresh token to get a fresh provider token.
