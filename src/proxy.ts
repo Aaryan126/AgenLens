@@ -1,15 +1,17 @@
 /**
- * Next.js middleware for Auth0 authentication.
+ * Next.js proxy (formerly middleware) for Auth0 authentication.
  *
- * Auth0 Next.js SDK v4 uses middleware to handle auth routes
+ * Auth0 Next.js SDK v4 uses a request interceptor to handle auth routes
  * (/auth/login, /auth/callback, /auth/logout, /auth/profile).
- * Only delegates to Auth0 middleware for /auth/* paths.
+ * Only delegates to Auth0 for /auth/* paths.
+ *
+ * This file replaces the deprecated `middleware.ts` convention in Next.js 16.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { auth0 } from "@/lib/auth0/client";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/auth/")) {

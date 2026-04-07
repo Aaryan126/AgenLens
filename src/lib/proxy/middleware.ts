@@ -19,7 +19,7 @@ import { auth0 } from "@/lib/auth0/client";
 import { evaluatePolicy } from "@/lib/proxy/policy-engine";
 import { logActivity } from "@/lib/proxy/logger";
 import { db } from "@/lib/db";
-import type { AgentType, ProxyRequest, ProxyResponse } from "@/lib/types";
+import type { AgentType, ProxyRequest, ProxyResponse, StepUpStatus } from "@/lib/types";
 import { AGENT_SCOPE_CONFIG } from "@/lib/types";
 
 /** Maximum number of polling attempts before timing out (12 * 5s = 60s). */
@@ -216,7 +216,7 @@ export async function proxyRequest(
  */
 async function handleStepUp(
   request: ProxyRequest
-): Promise<{ approved: boolean; reason: string; approvalId?: string; status: string }> {
+): Promise<{ approved: boolean; reason: string; approvalId?: string; status: StepUpStatus }> {
   const actionDescription = buildApprovalDescription(request);
 
   try {

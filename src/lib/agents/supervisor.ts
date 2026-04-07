@@ -14,6 +14,7 @@ import { ChatVertexAI } from "@langchain/google-vertexai";
 import { StateGraph, MessagesAnnotation, END } from "@langchain/langgraph";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { HumanMessage, SystemMessage, BaseMessage } from "@langchain/core/messages";
+import { ensureGoogleCredentials } from "@/lib/google-auth";
 import {
   listCalendarEvents,
   getCalendarEvent,
@@ -34,6 +35,10 @@ import {
   searchDriveFiles,
   getDriveFile,
 } from "@/lib/agents/tools";
+
+// Ensure Google service account credentials are available before
+// initializing the Vertex AI client. No-op locally where ADC is used.
+ensureGoogleCredentials();
 
 /** LLM instance shared across agent nodes. */
 const llm = new ChatVertexAI({
